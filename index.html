@@ -1,330 +1,208 @@
 <!doctype html>
 <html lang="de">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-  <title>Circle Blast</title>
-  <meta name="description" content="Circle Blast — kleines Browsergame. Klicke Kreise an, sammle Punkte und Highscores." />
-  <style>
-    :root{
-      --bg:#0b0b0f; --panel:#111217; --muted:rgba(255,255,255,0.08); --accent:#3b82f6;
-      --glass: rgba(255,255,255,0.03);
-      --radius:10px;
-      --ui-padding:10px;
-      --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
-    }
-    html,body{height:100%;margin:0;background:var(--bg);color:#fff;font-family:var(--font);-webkit-font-smoothing:antialiased}
-    #game-container{width:100%;height:100vh;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center}
-    .ui { position:absolute; top:12px; left:12px; z-index:30; display:flex; gap:8px; align-items:center; flex-wrap:wrap; background:transparent; }
-    .panel { background:var(--panel); border-radius:var(--radius); padding:var(--ui-padding); display:flex; gap:8px; align-items:center; box-shadow: 0 6px 18px rgba(0,0,0,0.6); }
-    .btn { background:linear-gradient(180deg,#1f2937,#111827); color:#fff; border:1px solid rgba(255,255,255,0.04); padding:8px 12px; border-radius:8px; cursor:pointer; font-weight:600; }
-    .btn.ghost { background:transparent; border:1px solid var(--muted); padding:6px 10px; font-weight:600; }
-    .score, .highscore { background:var(--glass); padding:8px 12px; border-radius:8px; font-weight:700; }
-    .center-msg { position:absolute; z-index:20; color:#ddd; text-align:center; pointer-events:none; left:50%; transform:translateX(-50%); top:36vh; }
-    .bottom-right { position:absolute; right:12px; bottom:12px; z-index:20; color:#ddd; font-size:13px; opacity:0.9; }
-    .small { font-size:13px; opacity:0.9; }
-    @media (max-width:520px){
-      .panel{padding:8px}
-      .score,.highscore{padding:6px 8px}
-      .btn{padding:6px 8px}
-    }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Circle Blast</title>
 
-  <!-- Phaser 3 CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.min.js"></script>
+<style>
+html,body {
+  margin:0;
+  padding:0;
+  height:100%;
+  background:#0b0b0f;
+  color:#fff;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto;
+}
+#game-container {
+  width:100%;
+  height:100%;
+}
+.ui {
+  position:absolute;
+  top:12px;
+  left:12px;
+  z-index:10;
+}
+.panel {
+  background:#111217;
+  padding:10px;
+  border-radius:10px;
+  display:flex;
+  gap:8px;
+  align-items:center;
+}
+.btn {
+  background:#1f2937;
+  border:none;
+  color:white;
+  padding:8px 12px;
+  border-radius:8px;
+  cursor:pointer;
+  font-weight:600;
+}
+.score {
+  font-weight:700;
+}
+.center-msg {
+  position:absolute;
+  top:45%;
+  left:50%;
+  transform:translate(-50%,-50%);
+  text-align:center;
+  opacity:0.9;
+}
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.min.js"></script>
 </head>
 <body>
-  <div id="game-container"></div>
 
-  <div class="ui" aria-hidden="true">
-    <div class="panel">
-      <div class="score" id="score">Score: 0</div>
-      <div class="highscore" id="highscore">Highscore: 0</div>
-      <button class="btn" id="startBtn">Start</button>
-      <button class="btn ghost" id="resetBtn">Reset</button>
-      <button class="btn ghost" id="resetHighBtn" title="Highscore löschen">Reset HS</button>
-      <button class="btn ghost" id="soundToggle">Sound On</button>
-    </div>
+<div id="game-container"></div>
+
+<div class="ui">
+  <div class="panel">
+    <div class="score" id="score">Score: 0</div>
+    <button class="btn" id="startBtn">Start</button>
+    <button class="btn" id="resetBtn">Reset</button>
   </div>
+</div>
 
-  <div class="center-msg" id="centerMsg" role="status" aria-live="polite">
-    <h1 style="margin:0 0 8px 0">Circle Blast</h1>
-    <div style="opacity:0.85">Klicke Kreise an, um Punkte zu sammeln</div>
-  </div>
+<div class="center-msg" id="centerMsg">
+  <h1>Circle Blast</h1>
+  <p>Kreise anklicken</p>
+</div>
 
-  <div class="bottom-right small" id="info">Tip: Klick Start</div>
+<script>
+const MAX_CIRCLES = 6;
+const SPAWN_DELAY = 1200;
 
-  <script>
-    // Konfiguration
-    const STORAGE_KEY = 'circle-blast-highscore-final';
-    const MAX_CIRCLES = 6;
-    const SPAWN_INTERVAL = 1400; // ms
-    const SPAWN_ATTEMPTS = 12;
-    const PARTICLE_LIMIT = 10;
+const config = {
+  type: Phaser.AUTO,
+  parent: 'game-container',
+  width: window.innerWidth,
+  height: window.innerHeight,
+  backgroundColor: '#0b0b0f',
+  scene: { preload, create }
+};
 
-    // Phaser Setup
-    const config = {
-      type: Phaser.AUTO,
-      parent: 'game-container',
-      width: Math.min(960, window.innerWidth),
-      height: Math.min(640, window.innerHeight),
-      backgroundColor: '#0b0b0f',
-      scene: { preload, create, update }
-    };
+new Phaser.Game(config);
 
-    let game = new Phaser.Game(config);
+function preload() {}
 
-    function preload() {
-      // nothing heavy here; particle texture created in create()
-      try { this.load.audio('pop', 'https://cdn.jsdelivr.net/gh/kripken/sound-effects/pop.mp3'); } catch(e){}
-    }
+function create() {
+  const scene = this;
+  const scoreEl = document.getElementById('score');
+  const centerMsg = document.getElementById('centerMsg');
 
-    function create() {
-      const scene = this;
+  let score = 0;
+  let running = false;
+  let spawnEvent = null;
 
-      // UI references
-      const scoreEl = document.getElementById('score');
-      const highEl = document.getElementById('highscore');
-      const centerMsg = document.getElementById('centerMsg');
-      const infoEl = document.getElementById('info');
-      let soundOn = true;
+  const circles = scene.add.group();
 
-      // state
-      let score = 0;
-      let running = false;
-      let spawnEvent = null;
-      const activeEmitters = [];
+  // === Texture Helper (KEIN Clipping mehr) ===
+  function circleTexture(size, color) {
+    const key = `c_${size}_${color}`;
+    if (scene.textures.exists(key)) return key;
 
-      // update UI helpers
-      const loadHighscore = () => {
-        const v = localStorage.getItem(STORAGE_KEY);
-        return v ? parseInt(v, 10) : 0;
-      };
-      const saveHighscore = (v) => localStorage.setItem(STORAGE_KEY, String(v));
-      const updateHighscoreDisplay = (v) => { if (highEl) highEl.textContent = 'Highscore: ' + v; };
-      updateHighscoreDisplay(loadHighscore());
+    const g = scene.add.graphics();
+    g.fillStyle(color, 1);
+    g.fillCircle(size / 2, size / 2, size / 2);
+    g.generateTexture(key, size, size);
+    g.destroy();
+    return key;
+  }
 
-      // group for circles (no physics bodies needed)
-      this.circles = this.add.group();
+  // === Spawn ===
+  function spawnCircle() {
+    if (!running || circles.getLength() >= MAX_CIRCLES) return;
 
-      // pre-generate a small particle texture (fast)
-      const g = this.add.graphics();
-      g.fillStyle(0xffffff, 1);
-      g.fillCircle(3, 3, 3);
-      g.generateTexture('particleDot', 6, 6);
-      g.destroy();
+    const size = Phaser.Math.Between(40, 70);
+    const half = size / 2;
 
-      // helper: create or reuse circle texture by size+color
-      const getCircleTexture = (size, colorInt) => {
-        const key = `circle_${size}_${colorInt}`;
-        if (!scene.textures.exists(key)) {
-          const gfx = scene.add.graphics();
-          gfx.fillStyle(colorInt, 1);
-          gfx.fillCircle(Math.round(size/2), Math.round(size/2), Math.round(size/2));
-          gfx.generateTexture(key, size, size);
-          gfx.destroy();
-        }
-        return key;
-      };
+    const x = Phaser.Math.Between(half, scene.scale.width - half);
+    const y = Phaser.Math.Between(half + 60, scene.scale.height - half);
 
-      // spawn logic (safe)
-      const spawnCircle = () => {
-        if (!scene || !scene.scale) return;
-        if (scene.circles.getLength() >= MAX_CIRCLES) return;
+    const color = Phaser.Display.Color.RandomRGB().color;
+    const sprite = scene.add.image(x, y, circleTexture(size, color));
 
-        const size = Phaser.Math.Between(28, 64);
-        let chosen = null;
-        for (let i=0;i<SPAWN_ATTEMPTS;i++) {
-          const half = Math.round(size/2);
-          const x = Phaser.Math.Between(half, scene.scale.width - half);
-          const y = Phaser.Math.Between(half + 44, scene.scale.height - half - 60);
-          const overlaps = scene.circles.getChildren().some(existing => {
-            const dx = existing.x - x;
-            const dy = existing.y - y;
-            const minDist = (existing.displayWidth + size) * 0.5 + 8;
-            return (dx*dx + dy*dy) < (minDist * minDist);
-          });
-          if (!overlaps) { chosen = {x,y}; break; }
-        }
-        if (!chosen) return;
+    sprite.setOrigin(0.5);
+    sprite.setInteractive({ useHandCursor:true });
+    sprite._dead = false;
 
-        const color = Phaser.Display.Color.RandomRGB();
-        const textureKey = getCircleTexture(size, color.color);
+    sprite.on('pointerdown', () => blast(sprite));
+    circles.add(sprite);
 
-        const sprite = scene.add.image(chosen.x, chosen.y, textureKey);
-        sprite.setDisplaySize(size, size);
-        sprite.setOrigin(0.5, 0.5);
-        sprite._isBlasting = false;
+    // Auto remove (single-owner logic!)
+    sprite._lifeTimer = scene.time.delayedCall(
+      Phaser.Math.Between(5000, 8000),
+      () => safeDestroy(sprite)
+    );
+  }
 
-        // make interactive per-sprite and handle pointerdown directly
-        sprite.setInteractive({ useHandCursor: true });
-        sprite.on('pointerdown', () => {
-          // ensure single trigger
-          if (sprite._isBlasting) return;
-          blastCircle(sprite);
-        });
+  // === Blast ===
+  function blast(sprite) {
+    if (sprite._dead) return;
+    sprite._dead = true;
 
-        scene.circles.add(sprite);
+    sprite.disableInteractive();
+    sprite._lifeTimer?.remove(false);
 
-        // auto remove after time if not blasted
-        scene.time.delayedCall(Phaser.Math.Between(6000, 10000), () => {
-          if (sprite && sprite.active && !sprite._isBlasting) {
-            try { sprite.off('pointerdown'); sprite.destroy(); } catch(e){}
-            try { scene.circles.remove(sprite, true, true); } catch(e){}
-          }
-        });
-      };
+    score += 10;
+    scoreEl.textContent = 'Score: ' + score;
 
-      // blast: disable sprite, tween to center, spawn particles, then destroy
-      const blastCircle = (sprite) => {
-        if (!sprite || sprite._isBlasting) return;
-        sprite._isBlasting = true;
+    scene.tweens.add({
+      targets: sprite,
+      scale: 0,
+      duration: 250,
+      ease: 'Cubic.easeIn',
+      onComplete: () => safeDestroy(sprite)
+    });
+  }
 
-        // disable interaction and kill tweens on it
-        try { sprite.disableInteractive(); scene.tweens.killTweensOf(sprite); } catch(e){}
+  // === Safe destroy ===
+  function safeDestroy(sprite) {
+    if (!sprite || !sprite.active) return;
+    sprite._dead = true;
+    sprite.off('pointerdown');
+    circles.remove(sprite);
+    sprite.destroy();
+  }
 
-        // scoring
-        const size = sprite.displayWidth;
-        const pts = Math.max(5, Math.round(80 - size));
-        score += pts;
-        if (scoreEl) scoreEl.textContent = 'Score: ' + score;
+  // === Game Control ===
+  function startGame() {
+    resetGame();
+    running = true;
+    centerMsg.style.display = 'none';
 
-        // highscore
-        const currentHigh = loadHighscore();
-        if (score > currentHigh) {
-          saveHighscore(score);
-          updateHighscoreDisplay(score);
-          infoEl.textContent = 'Neuer Highscore!';
-          setTimeout(()=> infoEl.textContent = 'Tip: Klick Start', 1200);
-        }
+    spawnEvent = scene.time.addEvent({
+      delay: SPAWN_DELAY,
+      loop: true,
+      callback: spawnCircle
+    });
 
-        const centerX = scene.scale.width / 2;
-        const centerY = scene.scale.height / 2;
+    for (let i=0;i<3;i++) spawnCircle();
+  }
 
-        // tween to center and shrink
-        scene.tweens.add({
-          targets: sprite,
-          x: centerX,
-          y: centerY,
-          scaleX: 0.05,
-          scaleY: 0.05,
-          duration: 320,
-          ease: 'Cubic.easeIn',
-          onComplete: () => {
-            // create particle emitter using pre-generated texture
-            const particles = scene.add.particles('particleDot');
-            const emitter = particles.createEmitter({
-              x: centerX, y: centerY,
-              speed: { min: 80, max: 220 },
-              angle: { min: 0, max: 360 },
-              lifespan: 400,
-              quantity: Math.min(6, PARTICLE_LIMIT),
-              scale: { start: 1.0, end: 0 },
-              blendMode: 'ADD'
-            });
-            activeEmitters.push(particles);
+  function resetGame() {
+    running = false;
+    score = 0;
+    scoreEl.textContent = 'Score: 0';
+    centerMsg.style.display = 'block';
 
-            // stop emitter shortly after and cleanup
-            scene.time.delayedCall(300, () => {
-              try { emitter.stop(); } catch(e){}
-              try { particles.destroy(); } catch(e){}
-              // remove sprite safely
-              try { sprite.off('pointerdown'); sprite.destroy(); } catch(e){}
-              try { scene.circles.remove(sprite, true, true); } catch(e){}
-            });
-          }
-        });
+    spawnEvent?.remove(false);
+    spawnEvent = null;
 
-        // safe sound play
-        try { if (soundOn && scene.sound && scene.sound.get('pop')) scene.sound.play('pop', { volume: 0.6 }); } catch(e){}
-      };
+    circles.getChildren().slice().forEach(s => safeDestroy(s));
+  }
 
-      // remove oldest if too many (safety)
-      const removeOldCircles = () => {
-        while (scene.circles.getLength() > MAX_CIRCLES) {
-          const oldest = scene.circles.getChildren()[0];
-          if (oldest) {
-            try { oldest.off('pointerdown'); oldest.destroy(); } catch(e){}
-            try { scene.circles.remove(oldest, true, true); } catch(e){}
-          } else break;
-        }
-      };
-
-      // start game: create spawnEvent and initial circles
-      const startGame = () => {
-        // clear any previous spawnEvent
-        try { if (spawnEvent) { spawnEvent.remove(false); spawnEvent = null; } } catch(e){}
-        spawnEvent = scene.time.addEvent({
-          delay: SPAWN_INTERVAL,
-          loop: true,
-          callback: () => {
-            try { if (scene.circles.getLength() < MAX_CIRCLES) spawnCircle(); removeOldCircles(); } catch(e){}
-          }
-        });
-
-        score = 0;
-        if (scoreEl) scoreEl.textContent = 'Score: 0';
-        running = true;
-        centerMsg.style.display = 'none';
-        infoEl.textContent = 'Spiel läuft';
-
-        for (let i=0;i<3;i++) {
-          if (scene.circles.getLength() < MAX_CIRCLES) spawnCircle();
-        }
-      };
-
-      // reset game: stop spawnEvent, kill tweens, destroy sprites and emitters
-      const resetGame = () => {
-        running = false;
-        score = 0;
-        if (scoreEl) scoreEl.textContent = 'Score: 0';
-        centerMsg.style.display = 'block';
-        infoEl.textContent = 'Zurückgesetzt';
-
-        try { if (spawnEvent) { spawnEvent.remove(false); spawnEvent = null; } } catch(e){}
-        try { scene.tweens.killAll(); } catch(e){}
-
-        // destroy all sprites
-        try {
-          const children = scene.circles.getChildren().slice();
-          children.forEach(c => {
-            try { c.off('pointerdown'); c.destroy(); } catch(e){}
-          });
-          scene.circles.clear(true);
-        } catch(e){}
-
-        // destroy active emitters
-        try {
-          activeEmitters.forEach(em => { try { em.destroy(); } catch(e){} });
-          activeEmitters.length = 0;
-        } catch(e){}
-
-        setTimeout(()=> infoEl.textContent = 'Tip: Klick Start', 1000);
-      };
-
-      // wire UI buttons
-      document.getElementById('startBtn').addEventListener('click', () => { if (!running) startGame(); });
-      document.getElementById('resetBtn').addEventListener('click', () => { resetGame(); });
-      document.getElementById('resetHighBtn').addEventListener('click', () => {
-        localStorage.removeItem(STORAGE_KEY);
-        updateHighscoreDisplay(0);
-        infoEl.textContent = 'Highscore zurückgesetzt';
-        setTimeout(()=> infoEl.textContent = 'Tip: Klick Start', 1200);
-      });
-      document.getElementById('soundToggle').addEventListener('click', (e) => {
-        soundOn = !soundOn;
-        e.target.textContent = soundOn ? 'Sound On' : 'Sound Off';
-      });
-
-      // expose debug helper (optional)
-      window.__cb_debug = {
-        getActiveCount: () => scene.circles.getLength()
-      };
-    }
-
-    function update() {
-      // no spawn logic here; spawn handled by time event
-    }
-  </script>
+  // === UI ===
+  document.getElementById('startBtn').onclick = () => {
+    if (!running) startGame();
+  };
+  document.getElementById('resetBtn').onclick = resetGame;
+}
+</script>
 </body>
 </html>
