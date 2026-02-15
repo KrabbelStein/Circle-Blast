@@ -26,7 +26,7 @@
       position:absolute;
       top:12px;
       left:12px;
-      z-index:40; /* hoch, damit UI immer sichtbar ist */
+      z-index:40;
     }
 
     .panel {
@@ -70,7 +70,7 @@
       text-align:center;
       opacity:0.95;
       pointer-events:none;
-      z-index:20; /* unter UI, über Spielinhalt */
+      z-index:20;
     }
 
     h1 { margin:0 0 6px 0; font-size:28px; }
@@ -93,7 +93,6 @@
     <div class="panel">
       <div class="score" id="score">Score: 0</div>
       <div class="timer" id="timer">Time: 30</div>
-      <!-- Highscore Anzeige hinzugefügt (Design unverändert) -->
       <div class="score" id="highscore">Highscore: 0</div>
       <button class="btn" id="startBtn">Start</button>
       <button class="btn" id="resetBtn">Reset</button>
@@ -127,7 +126,6 @@
     let game = new Phaser.Game(config);
 
     function preload() {
-      // optionaler Sound (wird still ignoriert, falls nicht verfügbar)
       try { this.load.audio('pop', 'https://cdn.jsdelivr.net/gh/kripken/sound-effects/pop.mp3'); } catch(e){}
     }
 
@@ -144,8 +142,8 @@
       let score = 0;
       let timeLeft = GAME_TIME;
       let running = false;
-      let spawnEvent = null;
-      let timerEvent = null;
+      let spawnEventLocal = null;
+      let timerEventLocal = null;
       const activeEmitters = [];
 
       // Gruppe für Kreise
@@ -168,7 +166,7 @@
         if (highEl) highEl.textContent = 'Highscore: ' + v;
       };
 
-      // initial Highscore anzeigen
+      // ensure highscore visible immediately
       updateHighscoreDisplay(loadHighscore());
 
       // Resize-Fix: Szene an Fenster anpassen
@@ -226,7 +224,7 @@
         };
         sprite.on('pointerdown', onPointer);
 
-        // Lebenszeit-Timer (kann entfernt werden)
+        // Lebenszeit-Timer
         sprite._lifeTimer = scene.time.delayedCall(
           Phaser.Math.Between(5000, 8000),
           () => {
@@ -270,9 +268,6 @@
           if (score > currentHigh) {
             saveHighscore(score);
             updateHighscoreDisplay(score);
-            // optional kurze Info
-            // infoEl && (infoEl.textContent = 'Neuer Highscore!');
-            // setTimeout(()=> { if (infoEl) infoEl.textContent = 'Tip: Klick Start'; }, 1200);
           }
         } catch(e){}
 
@@ -322,7 +317,7 @@
         try { if (scene.sound && scene.sound.get('pop')) scene.sound.play('pop', { volume: 0.6 }); } catch(e){}
       }
 
-      // Safe destroy helper (falls benötigt)
+      // Safe destroy helper
       function safeDestroy(sprite) {
         if (!sprite) return;
         try {
@@ -348,16 +343,14 @@
       }
 
       // Start / Reset / End Game mit sauberer Timer-Verwaltung
-      let spawnEventLocal = null;
-      let timerEventLocal = null;
+      let spawnEvent = null;
+      let timerEvent = null;
 
       function startGame() {
-        // clear previous
-        try { if (spawnEventLocal) { spawnEventLocal.remove(false); spawnEventLocal = null; } } catch(e){}
-        try { if (timerEventLocal) { timerEventLocal.remove(false); timerEventLocal = null; } } catch(e){}
+        try { if (spawnEvent) { spawnEvent.remove(false); spawnEvent = null; } } catch(e){}
+        try { if (timerEvent) { timerEvent.remove(false); timerEvent = null; } } catch(e){}
         try { scene.tweens.killAll(); } catch(e){}
 
-        // reset state
         score = 0;
         timeLeft = GAME_TIME;
         scoreEl.textContent = 'Score: ' + score;
@@ -365,8 +358,7 @@
         running = true;
         centerMsg.style.display = 'none';
 
-        // spawn event
-        spawnEventLocal = scene.time.addEvent({
+        spawnEvent = scene.time.addEvent({
           delay: SPAWN_DELAY,
           loop: true,
           callback: () => {
@@ -374,8 +366,7 @@
           }
         });
 
-        // timer event
-        timerEventLocal = scene.time.addEvent({
+        timerEvent = scene.time.addEvent({
           delay: 1000,
           loop: true,
           callback: () => {
@@ -387,7 +378,6 @@
           }
         });
 
-        // initial circles
         for (let i=0;i<3;i++) {
           if (scene.circles.getLength() < MAX_CIRCLES) spawnCircle();
         }
@@ -395,8 +385,8 @@
 
       function endGame() {
         running = false;
-        try { if (spawnEventLocal) { spawnEventLocal.remove(false); spawnEventLocal = null; } } catch(e){}
-        try { if (timerEventLocal) { timerEventLocal.remove(false); timerEventLocal = null; } } catch(e){}
+        try { if (spawnEvent) { spawnEvent.remove(false); spawnEvent = null; } } catch(e){}
+        try { if (timerEvent) { timerEvent.remove(false); timerEvent = null; } } catch(e){}
         try { scene.tweens.killAll(); } catch(e){}
 
         centerMsg.style.display = 'flex';
@@ -410,11 +400,10 @@
         scoreEl.textContent = 'Score: 0';
         timerEl.textContent = 'Time: ' + GAME_TIME;
 
-        try { if (spawnEventLocal) { spawnEventLocal.remove(false); spawnEventLocal = null; } } catch(e){}
-        try { if (timerEventLocal) { timerEventLocal.remove(false); timerEventLocal = null; } } catch(e){}
+        try { if (spawnEvent) { spawnEvent.remove(false); spawnEvent = null; } } catch(e){}
+        try { if (timerEvent) { timerEvent.remove(false); timerEvent = null; } } catch(e){}
         try { scene.tweens.killAll(); } catch(e){}
 
-        // destroy all sprites
         try {
           const children = scene.circles.getChildren().slice();
           children.forEach(c => {
@@ -423,7 +412,6 @@
           scene.circles.clear(true);
         } catch(e){}
 
-        // destroy emitters
         try {
           activeEmitters.forEach(em => { try { em.destroy(); } catch(e){} });
           activeEmitters.length = 0;
@@ -437,7 +425,7 @@
       document.getElementById('startBtn').onclick = () => { if (!running) startGame(); };
       document.getElementById('resetBtn').onclick = () => { resetGame(); };
 
-      // ensure timer is visible immediately
+      // ensure timer and score visible immediately
       timerEl.textContent = 'Time: ' + timeLeft;
       scoreEl.textContent = 'Score: ' + score;
       updateHighscoreDisplay(loadHighscore());
