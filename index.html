@@ -4,40 +4,41 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1.0" />
   <title>Circle Blast</title>
+  <meta name="description" content="Circle Blast — kleines Browsergame. Klicke Kreise an, sammle Punkte und Highscores." />
   <style>
-    html,body { height:100%; margin:0; background:#0b0b0f; color:#fff; font-family:system-ui,Segoe UI,Roboto,Arial; }
-    #game-container { width:100%; height:100vh; display:flex; align-items:center; justify-content:center; }
+    :root{
+      --bg:#0b0b0f; --panel:#111217; --muted:rgba(255,255,255,0.08); --accent:#3b82f6;
+      --glass: rgba(255,255,255,0.03);
+      --radius:10px;
+      --ui-padding:10px;
+      --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    }
+    html,body{height:100%;margin:0;background:var(--bg);color:#fff;font-family:var(--font);-webkit-font-smoothing:antialiased}
+    #game-container{width:100%;height:100vh;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center}
     .ui {
-      position: absolute;
-      top: 12px;
-      left: 12px;
-      z-index: 10;
-      display:flex;
-      gap:12px;
-      align-items:center;
+      position:absolute; top:12px; left:12px; z-index:30; display:flex; gap:8px; align-items:center; flex-wrap:wrap;
+      background:transparent;
     }
-    .ui button {
-      background:#1f2937;
-      color:#fff;
-      border:1px solid rgba(255,255,255,0.06);
-      padding:8px 12px;
-      border-radius:6px;
-      cursor:pointer;
+    .panel {
+      background:var(--panel); border-radius:var(--radius); padding:var(--ui-padding); display:flex; gap:8px; align-items:center;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.6);
     }
-    .ui .score {
-      background:rgba(255,255,255,0.04);
-      padding:8px 12px;
-      border-radius:6px;
-      font-weight:600;
+    .btn {
+      background:linear-gradient(180deg,#1f2937,#111827); color:#fff; border:1px solid rgba(255,255,255,0.04);
+      padding:8px 12px; border-radius:8px; cursor:pointer; font-weight:600;
     }
-    .center-msg {
-      position:absolute;
-      z-index:9;
-      color:#ddd;
-      text-align:center;
-      pointer-events:none;
+    .btn.ghost { background:transparent; border:1px solid var(--muted); padding:6px 10px; font-weight:600; }
+    .score, .highscore { background:var(--glass); padding:8px 12px; border-radius:8px; font-weight:700; }
+    .center-msg { position:absolute; z-index:20; color:#ddd; text-align:center; pointer-events:none; left:50%; transform:translateX(-50%); top:36vh; }
+    .bottom-right { position:absolute; right:12px; bottom:12px; z-index:20; color:#ddd; font-size:13px; opacity:0.9; }
+    .small { font-size:13px; opacity:0.9; }
+    @media (max-width:520px){
+      .panel{padding:8px}
+      .score,.highscore{padding:6px 8px}
+      .btn{padding:6px 8px}
     }
   </style>
+
   <!-- Phaser 3 CDN -->
   <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.min.js"></script>
 </head>
@@ -45,58 +46,71 @@
   <div id="game-container"></div>
 
   <div class="ui" aria-hidden="true">
-    <div class="score" id="score">Score: 0</div>
-    <button id="startBtn">Start</button>
-    <button id="resetBtn">Reset</button>
+    <div class="panel">
+      <div class="score" id="score">Score: 0</div>
+      <div class="highscore" id="highscore">Highscore: 0</div>
+      <button class="btn" id="startBtn">Start</button>
+      <button class="btn ghost" id="resetBtn">Reset</button>
+      <button class="btn ghost" id="resetHighBtn" title="Highscore löschen">Reset HS</button>
+      <button class="btn ghost" id="soundToggle">Sound On</button>
+    </div>
   </div>
 
-  <div class="center-msg" id="centerMsg" style="top:40vh; left:50%; transform:translateX(-50%);">
+  <div class="center-msg" id="centerMsg" role="status" aria-live="polite">
     <h1 style="margin:0 0 8px 0">Circle Blast</h1>
-    <div style="opacity:0.8">Klicke Kreise an, um Punkte zu sammeln</div>
+    <div style="opacity:0.85">Klicke Kreise an, um Punkte zu sammeln</div>
   </div>
+
+  <div class="bottom-right small" id="info">Tip: Klick Start</div>
 
   <script>
-    // Einfaches Circle Blast Spiel mit Phaser 3
+    // Konfiguration
+    const STORAGE_KEY = 'circle-blast-highscore-v2';
+    const MAX_CIRCLES = 6;
+    const SPAWN_INTERVAL = 1400; // ms
+    const SPAWN_ATTEMPTS = 12;
+    const PARTICLE_LIMIT = 18; // max particles per blast
+
+    // Phaser Setup
     const config = {
       type: Phaser.AUTO,
       parent: 'game-container',
       width: Math.min(960, window.innerWidth),
       height: Math.min(640, window.innerHeight),
       backgroundColor: '#0b0b0f',
-      physics: {
-        default: 'arcade',
-        arcade: { debug: false }
-      },
-      scene: {
-        preload,
-        create,
-        update
-      }
+      physics: { default: 'arcade', arcade: { debug: false } },
+      scene: { preload, create, update }
     };
 
     let game = new Phaser.Game(config);
     let score = 0;
-    let scoreEl = null;
-    let centerMsg = null;
+    let scoreEl, highEl, centerMsg, infoEl, soundOn = true;
     let spawnTimer = 0;
     let running = false;
+    let lastSpawn = 0;
 
     function preload() {
-      // keine externen Assets nötig; wir zeichnen Kreise per Graphics
+      // optional click sound
+      this.load.audio('pop', 'https://cdn.jsdelivr.net/gh/kripken/sound-effects/pop.mp3'); // fallback CDN; if blocked, sound will be ignored
     }
 
     function create() {
       const scene = this;
       scoreEl = document.getElementById('score');
+      highEl = document.getElementById('highscore');
       centerMsg = document.getElementById('centerMsg');
+      infoEl = document.getElementById('info');
 
-      // Gruppe für Kreise
+      updateHighscoreDisplay(loadHighscore());
+
       this.circles = this.physics.add.group();
+
+      // particles pool for reuse
+      this.particlesPool = [];
 
       // Input: Klick / Touch
       this.input.on('pointerdown', function (pointer) {
         if (!running) return;
-        // Prüfe Treffer auf Kreise
         const x = pointer.x;
         const y = pointer.y;
         const hit = scene.circles.getChildren().find(c => {
@@ -104,9 +118,7 @@
           const dy = c.y - y;
           return Math.sqrt(dx*dx + dy*dy) <= c.displayWidth/2;
         });
-        if (hit) {
-          blastCircle(scene, hit);
-        }
+        if (hit) blastCircle(scene, hit);
       });
 
       // Buttons
@@ -116,40 +128,81 @@
       document.getElementById('resetBtn').addEventListener('click', () => {
         resetGame(scene);
       });
+      document.getElementById('resetHighBtn').addEventListener('click', () => {
+        resetHighscore();
+        infoEl.textContent = 'Highscore zurückgesetzt';
+        setTimeout(()=> infoEl.textContent = 'Tip: Klick Start', 1600);
+      });
+      document.getElementById('soundToggle').addEventListener('click', (e) => {
+        soundOn = !soundOn;
+        e.target.textContent = soundOn ? 'Sound On' : 'Sound Off';
+      });
 
       // Responsive resize
       window.addEventListener('resize', () => {
         scene.scale.resize(Math.min(960, window.innerWidth), Math.min(640, window.innerHeight));
       });
 
-      // kleine Anleitung kurz anzeigen
-      setTimeout(() => { centerMsg.style.opacity = 0.9; }, 200);
+      // kurze Anleitung
+      setTimeout(() => { centerMsg.style.opacity = 0.95; }, 200);
       setTimeout(() => { centerMsg.style.opacity = 0.6; }, 4000);
     }
 
     function update(time, delta) {
       if (!running) return;
       spawnTimer += delta;
-      // alle 800ms neuen Kreis spawnen
-      if (spawnTimer > 800) {
+      if (spawnTimer > SPAWN_INTERVAL) {
         spawnTimer = 0;
-        spawnCircle(this);
+        // ensure we don't spawn too fast if many frames were skipped
+        if (this.circles.getLength() < MAX_CIRCLES) {
+          spawnCircle(this);
+        }
+        removeOldCircles(this);
       }
 
-      // Kreise bewegen leicht
+      // move circles slightly
       this.circles.getChildren().forEach(c => {
         c.x += c.vx;
         c.y += c.vy;
-        // Bounce an Rändern
         if (c.x < c.displayWidth/2 || c.x > this.scale.width - c.displayWidth/2) c.vx *= -1;
         if (c.y < c.displayHeight/2 || c.y > this.scale.height - c.displayHeight/2) c.vy *= -1;
       });
     }
 
+    function loadHighscore() {
+      const v = localStorage.getItem(STORAGE_KEY);
+      return v ? parseInt(v, 10) : 0;
+    }
+    function saveHighscore(value) {
+      localStorage.setItem(STORAGE_KEY, String(value));
+    }
+    function resetHighscore() {
+      localStorage.removeItem(STORAGE_KEY);
+      updateHighscoreDisplay(0);
+    }
+    function updateHighscoreDisplay(value) {
+      if (highEl) highEl.textContent = 'Highscore: ' + value;
+    }
+
     function spawnCircle(scene) {
-      const size = Phaser.Math.Between(24, 64);
-      const x = Phaser.Math.Between(size, scene.scale.width - size);
-      const y = Phaser.Math.Between(size, scene.scale.height - size);
+      const size = Phaser.Math.Between(28, 64);
+      const attempts = SPAWN_ATTEMPTS;
+      let chosen = null;
+
+      for (let i=0;i<attempts;i++) {
+        const x = Phaser.Math.Between(size, scene.scale.width - size);
+        const y = Phaser.Math.Between(size + 44, scene.scale.height - size - 60);
+        const overlaps = scene.circles.getChildren().some(existing => {
+          const dx = existing.x - x;
+          const dy = existing.y - y;
+          const minDist = (existing.displayWidth + size) * 0.5 + 8;
+          return (dx*dx + dy*dy) < (minDist * minDist);
+        });
+        if (!overlaps) { chosen = {x,y}; break; }
+      }
+
+      if (!chosen) return; // no free spot found
+
       const color = Phaser.Display.Color.RandomRGB();
       const gfx = scene.add.graphics();
       gfx.fillStyle(color.color, 1);
@@ -158,7 +211,7 @@
       gfx.generateTexture(textureKey, size, size);
       gfx.destroy();
 
-      const sprite = scene.add.image(x, y, textureKey);
+      const sprite = scene.add.image(chosen.x, chosen.y, textureKey);
       sprite.setDisplaySize(size, size);
       scene.physics.world.enable(sprite);
       sprite.body.setCircle(size/2);
@@ -166,58 +219,80 @@
       sprite.vy = Phaser.Math.FloatBetween(-1.2, 1.2);
       scene.circles.add(sprite);
 
-      // Timeout: entferne nach 6-10s, wenn nicht getroffen
+      // auto remove after time
       scene.time.delayedCall(Phaser.Math.Between(6000, 10000), () => {
-        if (sprite.active) {
-          sprite.destroy();
-        }
+        if (sprite && sprite.active) sprite.destroy();
       });
     }
 
     function blastCircle(scene, sprite) {
-      // kleine Explosionseffekte
       const x = sprite.x, y = sprite.y;
+      const size = sprite.displayWidth;
       sprite.destroy();
-      score += 10;
-      updateScore();
 
-      // Partikel
+      // Punkte: kleinere Kreise geben mehr Punkte
+      const pts = Math.max(5, Math.round(80 - size));
+      score += pts;
+      if (scoreEl) scoreEl.textContent = 'Score: ' + score;
+
+      // update highscore
+      const currentHigh = loadHighscore();
+      if (score > currentHigh) {
+        saveHighscore(score);
+        updateHighscoreDisplay(score);
+        infoEl.textContent = 'Neuer Highscore!';
+        setTimeout(()=> infoEl.textContent = 'Tip: Klick Start', 1200);
+      }
+
+      // Partikel (limited)
       const particles = scene.add.particles(null);
       const emitter = particles.createEmitter({
         x, y,
         speed: { min: 80, max: 220 },
         angle: { min: 0, max: 360 },
         lifespan: 400,
-        quantity: 12,
+        quantity: Math.min(12, PARTICLE_LIMIT),
         scale: { start: 0.6, end: 0 },
         blendMode: 'ADD'
       });
-      scene.time.delayedCall(350, () => {
-        particles.destroy();
-      });
-    }
+      scene.time.delayedCall(350, () => particles.destroy());
 
-    function updateScore() {
-      if (scoreEl) scoreEl.textContent = 'Score: ' + score;
+      // optional sound
+      if (soundOn && scene.sound && scene.sound.get('pop')) {
+        scene.sound.play('pop', { volume: 0.6 });
+      }
     }
 
     function startGame(scene) {
       score = 0;
-      updateScore();
+      if (scoreEl) scoreEl.textContent = 'Score: 0';
       running = true;
       centerMsg.style.display = 'none';
-      // sofort ein paar Kreise spawnen
-      for (let i=0;i<3;i++) spawnCircle(scene);
+      infoEl.textContent = 'Spiel läuft';
+      // spawn a few initial circles
+      for (let i=0;i<3;i++) {
+        if (scene.circles.getLength() < MAX_CIRCLES) spawnCircle(scene);
+      }
     }
 
     function resetGame(scene) {
       running = false;
       score = 0;
-      updateScore();
+      if (scoreEl) scoreEl.textContent = 'Score: 0';
       centerMsg.style.display = 'block';
-      // alle Kreise entfernen
       scene.circles.clear(true, true);
+      infoEl.textContent = 'Zurückgesetzt';
+      setTimeout(()=> infoEl.textContent = 'Tip: Klick Start', 1000);
     }
+
+    // Expose reset for UI button
+    document.addEventListener('DOMContentLoaded', () => {
+      // ensure Phaser scene is ready
+      // nothing else needed here
+    });
+
+    // Ensure Phaser sound fallback safe load
+    // If the CDN sound fails, Phaser will ignore it silently.
   </script>
 </body>
 </html>
