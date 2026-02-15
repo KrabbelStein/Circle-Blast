@@ -142,8 +142,8 @@
       let score = 0;
       let timeLeft = GAME_TIME;
       let running = false;
-      let spawnEventLocal = null;
-      let timerEventLocal = null;
+      let spawnEvent = null;
+      let timerEvent = null;
       const activeEmitters = [];
 
       // Gruppe für Kreise
@@ -343,12 +343,12 @@
       }
 
       // Start / Reset / End Game mit sauberer Timer-Verwaltung
-      let spawnEvent = null;
-      let timerEvent = null;
+      let spawnEventLocal = null;
+      let timerEventLocal = null;
 
       function startGame() {
-        try { if (spawnEvent) { spawnEvent.remove(false); spawnEvent = null; } } catch(e){}
-        try { if (timerEvent) { timerEvent.remove(false); timerEvent = null; } } catch(e){}
+        try { if (spawnEventLocal) { spawnEventLocal.remove(false); spawnEventLocal = null; } } catch(e){}
+        try { if (timerEventLocal) { timerEventLocal.remove(false); timerEventLocal = null; } } catch(e){}
         try { scene.tweens.killAll(); } catch(e){}
 
         score = 0;
@@ -358,7 +358,7 @@
         running = true;
         centerMsg.style.display = 'none';
 
-        spawnEvent = scene.time.addEvent({
+        spawnEventLocal = scene.time.addEvent({
           delay: SPAWN_DELAY,
           loop: true,
           callback: () => {
@@ -366,7 +366,7 @@
           }
         });
 
-        timerEvent = scene.time.addEvent({
+        timerEventLocal = scene.time.addEvent({
           delay: 1000,
           loop: true,
           callback: () => {
@@ -378,15 +378,14 @@
           }
         });
 
-        for (let i=0;i<3;i++) {
-          if (scene.circles.getLength() < MAX_CIRCLES) spawnCircle();
-        }
+        // initial: nur 1 Kreis (Änderung auf Wunsch)
+        if (scene.circles.getLength() < MAX_CIRCLES) spawnCircle();
       }
 
       function endGame() {
         running = false;
-        try { if (spawnEvent) { spawnEvent.remove(false); spawnEvent = null; } } catch(e){}
-        try { if (timerEvent) { timerEvent.remove(false); timerEvent = null; } } catch(e){}
+        try { if (spawnEventLocal) { spawnEventLocal.remove(false); spawnEventLocal = null; } } catch(e){}
+        try { if (timerEventLocal) { timerEventLocal.remove(false); timerEventLocal = null; } } catch(e){}
         try { scene.tweens.killAll(); } catch(e){}
 
         centerMsg.style.display = 'flex';
@@ -400,8 +399,8 @@
         scoreEl.textContent = 'Score: 0';
         timerEl.textContent = 'Time: ' + GAME_TIME;
 
-        try { if (spawnEvent) { spawnEvent.remove(false); spawnEvent = null; } } catch(e){}
-        try { if (timerEvent) { timerEvent.remove(false); timerEvent = null; } } catch(e){}
+        try { if (spawnEventLocal) { spawnEventLocal.remove(false); spawnEventLocal = null; } } catch(e){}
+        try { if (timerEventLocal) { timerEventLocal.remove(false); timerEventLocal = null; } } catch(e){}
         try { scene.tweens.killAll(); } catch(e){}
 
         try {
