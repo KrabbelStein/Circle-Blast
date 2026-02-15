@@ -15,18 +15,9 @@
     }
     html,body{height:100%;margin:0;background:var(--bg);color:#fff;font-family:var(--font);-webkit-font-smoothing:antialiased}
     #game-container{width:100%;height:100vh;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center}
-    .ui {
-      position:absolute; top:12px; left:12px; z-index:30; display:flex; gap:8px; align-items:center; flex-wrap:wrap;
-      background:transparent;
-    }
-    .panel {
-      background:var(--panel); border-radius:var(--radius); padding:var(--ui-padding); display:flex; gap:8px; align-items:center;
-      box-shadow: 0 6px 18px rgba(0,0,0,0.6);
-    }
-    .btn {
-      background:linear-gradient(180deg,#1f2937,#111827); color:#fff; border:1px solid rgba(255,255,255,0.04);
-      padding:8px 12px; border-radius:8px; cursor:pointer; font-weight:600;
-    }
+    .ui { position:absolute; top:12px; left:12px; z-index:30; display:flex; gap:8px; align-items:center; flex-wrap:wrap; background:transparent; }
+    .panel { background:var(--panel); border-radius:var(--radius); padding:var(--ui-padding); display:flex; gap:8px; align-items:center; box-shadow: 0 6px 18px rgba(0,0,0,0.6); }
+    .btn { background:linear-gradient(180deg,#1f2937,#111827); color:#fff; border:1px solid rgba(255,255,255,0.04); padding:8px 12px; border-radius:8px; cursor:pointer; font-weight:600; }
     .btn.ghost { background:transparent; border:1px solid var(--muted); padding:6px 10px; font-weight:600; }
     .score, .highscore { background:var(--glass); padding:8px 12px; border-radius:8px; font-weight:700; }
     .center-msg { position:absolute; z-index:20; color:#ddd; text-align:center; pointer-events:none; left:50%; transform:translateX(-50%); top:36vh; }
@@ -90,7 +81,12 @@
 
     function preload() {
       // optional click sound (may fail silently if CDN blocked)
-      this.load.audio('pop', 'https://cdn.jsdelivr.net/gh/kripken/sound-effects/pop.mp3');
+      // If you prefer, host a small pop.mp3 in your repo and change the URL.
+      try {
+        this.load.audio('pop', 'https://cdn.jsdelivr.net/gh/kripken/sound-effects/pop.mp3');
+      } catch (e) {
+        // ignore
+      }
     }
 
     function create() {
@@ -154,7 +150,7 @@
         }
         removeOldCircles(this);
       }
-      // keine konstante Bewegung mehr — Kreise sind statisch bis zum Klick
+      // Kreise bleiben statisch bis zum Klick
     }
 
     function loadHighscore() {
@@ -177,8 +173,9 @@
       let chosen = null;
 
       for (let i=0;i<SPAWN_ATTEMPTS;i++) {
-        const x = Phaser.Math.Between(size, scene.scale.width - size);
-        const y = Phaser.Math.Between(size + 44, scene.scale.height - size - 60);
+        const half = Math.round(size / 2);
+        const x = Phaser.Math.Between(half, scene.scale.width - half);
+        const y = Phaser.Math.Between(half + 44, scene.scale.height - half - 60);
         const overlaps = scene.circles.getChildren().some(existing => {
           const dx = existing.x - x;
           const dy = existing.y - y;
@@ -192,36 +189,41 @@
 
       const color = Phaser.Display.Color.RandomRGB();
       const gfx = scene.add.graphics();
+      // draw circle centered in texture to avoid quarter-circle bug
       gfx.fillStyle(color.color, 1);
-      gfx.fillCircle(0, 0, size/2);
+      gfx.fillCircle(Math.round(size/2), Math.round(size/2), Math.round(size/2));
       const textureKey = 'circle' + Phaser.Math.RND.uuid();
       gfx.generateTexture(textureKey, size, size);
       gfx.destroy();
 
       const sprite = scene.add.image(chosen.x, chosen.y, textureKey);
       sprite.setDisplaySize(size, size);
+      sprite.setOrigin(0.5, 0.5);
       scene.physics.world.enable(sprite);
-      sprite.body.setCircle(size/2);
-      // keine vx/vy — statisch bis zum Klick
+      if (sprite.body && sprite.body.setCircle) {
+        sprite.body.setCircle(Math.round(size/2));
+      }
       scene.circles.add(sprite);
 
-      // auto remove after time
+      // auto remove after time (clean remove from group)
       scene.time.delayedCall(Phaser.Math.Between(6000, 10000), () => {
-        if (sprite && sprite.active) sprite.destroy();
+        if (sprite && sprite.active) {
+          scene.circles.remove(sprite, true, true);
+        }
       });
     }
 
     function removeOldCircles(scene) {
       // Entferne älteste, falls zu viele
-      const children = scene.circles.getChildren();
-      while (children.length > MAX_CIRCLES) {
-        const oldest = children.shift();
-        if (oldest && oldest.destroy) oldest.destroy();
+      while (scene.circles.getLength() > MAX_CIRCLES) {
+        const oldest = scene.circles.getChildren()[0];
+        if (oldest) {
+          scene.circles.remove(oldest, true, true);
+        } else break;
       }
     }
 
     function blastCircle(scene, sprite) {
-      const x = sprite.x, y = sprite.y;
       const size = sprite.displayWidth;
 
       // Punkte: kleinere Kreise geben mehr Punkte
@@ -238,20 +240,21 @@
         setTimeout(()=> infoEl.textContent = 'Tip: Klick Start', 1200);
       }
 
-      // Tween: zur Mitte bewegen und schrumpfen
+      // Tween: zur Mitte bewegen und schrumpfen (scaleX/scaleY)
       const centerX = scene.scale.width / 2;
       const centerY = scene.scale.height / 2;
       scene.tweens.add({
         targets: sprite,
         x: centerX,
         y: centerY,
-        scale: 0.05,
+        scaleX: 0.05,
+        scaleY: 0.05,
         duration: 320,
         ease: 'Cubic.easeIn',
         onComplete: () => {
           // Partikel
           const particles = scene.add.particles(null);
-          const emitter = particles.createEmitter({
+          particles.createEmitter({
             x: centerX, y: centerY,
             speed: { min: 80, max: 220 },
             angle: { min: 0, max: 360 },
@@ -261,13 +264,16 @@
             blendMode: 'ADD'
           });
           scene.time.delayedCall(350, () => particles.destroy());
-          sprite.destroy();
+          // Entferne sauber aus Gruppe und zerstöre Sprite
+          scene.circles.remove(sprite, true, true);
         }
       });
 
-      // optional sound
-      if (soundOn && scene.sound && scene.sound.get('pop')) {
-        scene.sound.play('pop', { volume: 0.6 });
+      // optional sound (safe play)
+      try {
+        if (soundOn) scene.sound.play('pop', { volume: 0.6 });
+      } catch (e) {
+        // ignore if sound not loaded
       }
     }
 
