@@ -4,9 +4,220 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1.0" />
   <title>Circle Blast</title>
-  <style>html,body{height:100%;margin:0;background:#0b0b0f;color:#fff;display:flex;align-items:center;justify-content:center}</style>
+  <style>
+    html,body { height:100%; margin:0; background:#0b0b0f; color:#fff; font-family:system-ui,Segoe UI,Roboto,Arial; }
+    #game-container { width:100%; height:100vh; display:flex; align-items:center; justify-content:center; }
+    .ui {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      z-index: 10;
+      display:flex;
+      gap:12px;
+      align-items:center;
+    }
+    .ui button {
+      background:#1f2937;
+      color:#fff;
+      border:1px solid rgba(255,255,255,0.06);
+      padding:8px 12px;
+      border-radius:6px;
+      cursor:pointer;
+    }
+    .ui .score {
+      background:rgba(255,255,255,0.04);
+      padding:8px 12px;
+      border-radius:6px;
+      font-weight:600;
+    }
+    .center-msg {
+      position:absolute;
+      z-index:9;
+      color:#ddd;
+      text-align:center;
+      pointer-events:none;
+    }
+  </style>
+  <!-- Phaser 3 CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.min.js"></script>
 </head>
 <body>
-  <h1>Circle Blast — Testseite</h1>
+  <div id="game-container"></div>
+
+  <div class="ui" aria-hidden="true">
+    <div class="score" id="score">Score: 0</div>
+    <button id="startBtn">Start</button>
+    <button id="resetBtn">Reset</button>
+  </div>
+
+  <div class="center-msg" id="centerMsg" style="top:40vh; left:50%; transform:translateX(-50%);">
+    <h1 style="margin:0 0 8px 0">Circle Blast</h1>
+    <div style="opacity:0.8">Klicke Kreise an, um Punkte zu sammeln</div>
+  </div>
+
+  <script>
+    // Einfaches Circle Blast Spiel mit Phaser 3
+    const config = {
+      type: Phaser.AUTO,
+      parent: 'game-container',
+      width: Math.min(960, window.innerWidth),
+      height: Math.min(640, window.innerHeight),
+      backgroundColor: '#0b0b0f',
+      physics: {
+        default: 'arcade',
+        arcade: { debug: false }
+      },
+      scene: {
+        preload,
+        create,
+        update
+      }
+    };
+
+    let game = new Phaser.Game(config);
+    let score = 0;
+    let scoreEl = null;
+    let centerMsg = null;
+    let spawnTimer = 0;
+    let running = false;
+
+    function preload() {
+      // keine externen Assets nötig; wir zeichnen Kreise per Graphics
+    }
+
+    function create() {
+      const scene = this;
+      scoreEl = document.getElementById('score');
+      centerMsg = document.getElementById('centerMsg');
+
+      // Gruppe für Kreise
+      this.circles = this.physics.add.group();
+
+      // Input: Klick / Touch
+      this.input.on('pointerdown', function (pointer) {
+        if (!running) return;
+        // Prüfe Treffer auf Kreise
+        const x = pointer.x;
+        const y = pointer.y;
+        const hit = scene.circles.getChildren().find(c => {
+          const dx = c.x - x;
+          const dy = c.y - y;
+          return Math.sqrt(dx*dx + dy*dy) <= c.displayWidth/2;
+        });
+        if (hit) {
+          blastCircle(scene, hit);
+        }
+      });
+
+      // Buttons
+      document.getElementById('startBtn').addEventListener('click', () => {
+        if (!running) startGame(scene);
+      });
+      document.getElementById('resetBtn').addEventListener('click', () => {
+        resetGame(scene);
+      });
+
+      // Responsive resize
+      window.addEventListener('resize', () => {
+        scene.scale.resize(Math.min(960, window.innerWidth), Math.min(640, window.innerHeight));
+      });
+
+      // kleine Anleitung kurz anzeigen
+      setTimeout(() => { centerMsg.style.opacity = 0.9; }, 200);
+      setTimeout(() => { centerMsg.style.opacity = 0.6; }, 4000);
+    }
+
+    function update(time, delta) {
+      if (!running) return;
+      spawnTimer += delta;
+      // alle 800ms neuen Kreis spawnen
+      if (spawnTimer > 800) {
+        spawnTimer = 0;
+        spawnCircle(this);
+      }
+
+      // Kreise bewegen leicht
+      this.circles.getChildren().forEach(c => {
+        c.x += c.vx;
+        c.y += c.vy;
+        // Bounce an Rändern
+        if (c.x < c.displayWidth/2 || c.x > this.scale.width - c.displayWidth/2) c.vx *= -1;
+        if (c.y < c.displayHeight/2 || c.y > this.scale.height - c.displayHeight/2) c.vy *= -1;
+      });
+    }
+
+    function spawnCircle(scene) {
+      const size = Phaser.Math.Between(24, 64);
+      const x = Phaser.Math.Between(size, scene.scale.width - size);
+      const y = Phaser.Math.Between(size, scene.scale.height - size);
+      const color = Phaser.Display.Color.RandomRGB();
+      const gfx = scene.add.graphics();
+      gfx.fillStyle(color.color, 1);
+      gfx.fillCircle(0, 0, size/2);
+      const textureKey = 'circle' + Phaser.Math.RND.uuid();
+      gfx.generateTexture(textureKey, size, size);
+      gfx.destroy();
+
+      const sprite = scene.add.image(x, y, textureKey);
+      sprite.setDisplaySize(size, size);
+      scene.physics.world.enable(sprite);
+      sprite.body.setCircle(size/2);
+      sprite.vx = Phaser.Math.FloatBetween(-1.2, 1.2);
+      sprite.vy = Phaser.Math.FloatBetween(-1.2, 1.2);
+      scene.circles.add(sprite);
+
+      // Timeout: entferne nach 6-10s, wenn nicht getroffen
+      scene.time.delayedCall(Phaser.Math.Between(6000, 10000), () => {
+        if (sprite.active) {
+          sprite.destroy();
+        }
+      });
+    }
+
+    function blastCircle(scene, sprite) {
+      // kleine Explosionseffekte
+      const x = sprite.x, y = sprite.y;
+      sprite.destroy();
+      score += 10;
+      updateScore();
+
+      // Partikel
+      const particles = scene.add.particles(null);
+      const emitter = particles.createEmitter({
+        x, y,
+        speed: { min: 80, max: 220 },
+        angle: { min: 0, max: 360 },
+        lifespan: 400,
+        quantity: 12,
+        scale: { start: 0.6, end: 0 },
+        blendMode: 'ADD'
+      });
+      scene.time.delayedCall(350, () => {
+        particles.destroy();
+      });
+    }
+
+    function updateScore() {
+      if (scoreEl) scoreEl.textContent = 'Score: ' + score;
+    }
+
+    function startGame(scene) {
+      score = 0;
+      updateScore();
+      running = true;
+      centerMsg.style.display = 'none';
+      // sofort ein paar Kreise spawnen
+      for (let i=0;i<3;i++) spawnCircle(scene);
+    }
+
+    function resetGame(scene) {
+      running = false;
+      score = 0;
+      updateScore();
+      centerMsg.style.display = 'block';
+      // alle Kreise entfernen
+      scene.circles.clear(true, true);
+    }
+  </script>
 </body>
 </html>
