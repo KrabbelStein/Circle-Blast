@@ -12,22 +12,45 @@ html,body {
   height:100%;
   background:#0b0b0f;
   color:#fff;
-  font-family: system-ui;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto;
 }
-#game { width:100%; height:100%; }
+#game-container {
+  width:100%;
+  height:100%;
+}
 .ui {
   position:absolute;
   top:12px;
   left:12px;
   z-index:10;
 }
+.panel {
+  background:#111217;
+  padding:10px;
+  border-radius:10px;
+  display:flex;
+  gap:8px;
+  align-items:center;
+}
 .btn {
   background:#1f2937;
-  color:white;
   border:none;
+  color:white;
   padding:8px 12px;
   border-radius:8px;
+  cursor:pointer;
   font-weight:600;
+}
+.score {
+  font-weight:700;
+}
+.center-msg {
+  position:absolute;
+  top:45%;
+  left:50%;
+  transform:translate(-50%,-50%);
+  text-align:center;
+  opacity:0.9;
 }
 </style>
 
@@ -35,111 +58,150 @@ html,body {
 </head>
 <body>
 
-<div id="game"></div>
+<div id="game-container"></div>
 
 <div class="ui">
-  <span id="score">Score: 0</span>
-  <button class="btn" id="start">Start</button>
-  <button class="btn" id="reset">Reset</button>
+  <div class="panel">
+    <div class="score" id="score">Score: 0</div>
+    <button class="btn" id="startBtn">Start</button>
+    <button class="btn" id="resetBtn">Reset</button>
+  </div>
+</div>
+
+<div class="center-msg" id="centerMsg">
+  <h1>Circle Blast</h1>
+  <p>Kreise anklicken</p>
 </div>
 
 <script>
-const MAX = 6;
+const MAX_CIRCLES = 6;
 const SPAWN_DELAY = 1200;
 
-const game = new Phaser.Game({
+const config = {
   type: Phaser.AUTO,
-  parent: 'game',
+  parent: 'game-container',
   width: window.innerWidth,
   height: window.innerHeight,
   backgroundColor: '#0b0b0f',
-  scene: { create }
-});
+  scene: { preload, create }
+};
+
+new Phaser.Game(config);
+
+function preload() {}
 
 function create() {
   const scene = this;
   const scoreEl = document.getElementById('score');
+  const centerMsg = document.getElementById('centerMsg');
 
   let score = 0;
   let running = false;
-  let spawnTimer = null;
+  let spawnEvent = null;
 
-  const circles = [];
+  const circles = scene.add.group();
 
-  function spawn() {
-    if (!running || circles.length >= MAX) return;
+  // === Texture Helper (KEIN Clipping mehr) ===
+  function circleTexture(size, color) {
+    const key = `c_${size}_${color}`;
+    if (scene.textures.exists(key)) return key;
 
-    const r = Phaser.Math.Between(20, 35);
-    const x = Phaser.Math.Between(r, scene.scale.width - r);
-    const y = Phaser.Math.Between(80, scene.scale.height - r);
+    const g = scene.add.graphics();
+    g.fillStyle(color, 1);
+    g.fillCircle(size / 2, size / 2, size / 2);
+    g.generateTexture(key, size, size);
+    g.destroy();
+    return key;
+  }
 
-    const g = scene.add.graphics({ x, y });
-    g.fillStyle(Phaser.Display.Color.RandomRGB().color, 1);
-    g.fillCircle(0, 0, r);
-    g.setInteractive(
-      new Phaser.Geom.Circle(0, 0, r),
-      Phaser.Geom.Circle.Contains
-    );
+  // === Spawn ===
+  function spawnCircle() {
+    if (!running || circles.getLength() >= MAX_CIRCLES) return;
 
-    const obj = { g, dead:false };
-    circles.push(obj);
+    const size = Phaser.Math.Between(40, 70);
+    const half = size / 2;
 
-    g.on('pointerdown', () => blast(obj));
+    const x = Phaser.Math.Between(half, scene.scale.width - half);
+    const y = Phaser.Math.Between(half + 60, scene.scale.height - half);
 
-    obj.timer = scene.time.delayedCall(
-      6000,
-      () => remove(obj)
+    const color = Phaser.Display.Color.RandomRGB().color;
+    const sprite = scene.add.image(x, y, circleTexture(size, color));
+
+    sprite.setOrigin(0.5);
+    sprite.setInteractive({ useHandCursor:true });
+    sprite._dead = false;
+
+    sprite.on('pointerdown', () => blast(sprite));
+    circles.add(sprite);
+
+    // Auto remove (single-owner logic!)
+    sprite._lifeTimer = scene.time.delayedCall(
+      Phaser.Math.Between(5000, 8000),
+      () => safeDestroy(sprite)
     );
   }
 
-  function blast(obj) {
-    if (obj.dead) return;
-    obj.dead = true;
+  // === Blast ===
+  function blast(sprite) {
+    if (sprite._dead) return;
+    sprite._dead = true;
 
-    obj.timer?.remove(false);
+    sprite.disableInteractive();
+    sprite._lifeTimer?.remove(false);
+
     score += 10;
     scoreEl.textContent = 'Score: ' + score;
 
     scene.tweens.add({
-      targets: obj.g,
+      targets: sprite,
       scale: 0,
       duration: 250,
-      onComplete: () => remove(obj)
+      ease: 'Cubic.easeIn',
+      onComplete: () => safeDestroy(sprite)
     });
   }
 
-  function remove(obj) {
-    if (!obj || obj.g.destroyed) return;
-    obj.dead = true;
-    obj.g.removeAllListeners();
-    obj.g.destroy();
-    const i = circles.indexOf(obj);
-    if (i !== -1) circles.splice(i,1);
+  // === Safe destroy ===
+  function safeDestroy(sprite) {
+    if (!sprite || !sprite.active) return;
+    sprite._dead = true;
+    sprite.off('pointerdown');
+    circles.remove(sprite);
+    sprite.destroy();
   }
 
-  function start() {
-    reset();
+  // === Game Control ===
+  function startGame() {
+    resetGame();
     running = true;
-    spawnTimer = scene.time.addEvent({
+    centerMsg.style.display = 'none';
+
+    spawnEvent = scene.time.addEvent({
       delay: SPAWN_DELAY,
       loop: true,
-      callback: spawn
+      callback: spawnCircle
     });
-    for (let i=0;i<3;i++) spawn();
+
+    for (let i=0;i<3;i++) spawnCircle();
   }
 
-  function reset() {
+  function resetGame() {
     running = false;
-    spawnTimer?.remove(false);
-    spawnTimer = null;
-    circles.slice().forEach(remove);
-    circles.length = 0;
     score = 0;
     scoreEl.textContent = 'Score: 0';
+    centerMsg.style.display = 'block';
+
+    spawnEvent?.remove(false);
+    spawnEvent = null;
+
+    circles.getChildren().slice().forEach(s => safeDestroy(s));
   }
 
-  document.getElementById('start').onclick = start;
-  document.getElementById('reset').onclick = reset;
+  // === UI ===
+  document.getElementById('startBtn').onclick = () => {
+    if (!running) startGame();
+  };
+  document.getElementById('resetBtn').onclick = resetGame;
 }
 </script>
 </body>
