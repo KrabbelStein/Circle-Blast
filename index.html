@@ -332,7 +332,7 @@
         scene.circles.getChildren().slice().forEach(c => { c.off('pointerdown'); c.destroy(); });
         scene.circles.clear(true);
         activeEmitters.forEach(em => { try{em.destroy(); } catch(e){} }); activeEmitters.length=0;
-        centerMsg.style.display='flex'; centerMsg.innerHTML=`<h1>Circle Blast</h1><p>Treffe die Kreise so schnell wie Möglich</p>`;
+        centerMsg.style.display='flex'; centerMsg.innerHTML=`<h1>Circle Blast</h1><p>Treffe die Kreise so schnell wie möglich und trainiere deine Reaktionszeit.</p>`;
       }
 
       document.getElementById('startBtn').onclick = ()=>{ if(!running) startGame(); };
