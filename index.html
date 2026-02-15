@@ -87,11 +87,10 @@
     let scoreEl, highEl, centerMsg, infoEl, soundOn = true;
     let spawnTimer = 0;
     let running = false;
-    let lastSpawn = 0;
 
     function preload() {
-      // optional click sound
-      this.load.audio('pop', 'https://cdn.jsdelivr.net/gh/kripken/sound-effects/pop.mp3'); // fallback CDN; if blocked, sound will be ignored
+      // optional click sound (may fail silently if CDN blocked)
+      this.load.audio('pop', 'https://cdn.jsdelivr.net/gh/kripken/sound-effects/pop.mp3');
     }
 
     function create() {
@@ -104,9 +103,6 @@
       updateHighscoreDisplay(loadHighscore());
 
       this.circles = this.physics.add.group();
-
-      // particles pool for reuse
-      this.particlesPool = [];
 
       // Input: Klick / Touch
       this.input.on('pointerdown', function (pointer) {
@@ -153,20 +149,12 @@
       spawnTimer += delta;
       if (spawnTimer > SPAWN_INTERVAL) {
         spawnTimer = 0;
-        // ensure we don't spawn too fast if many frames were skipped
         if (this.circles.getLength() < MAX_CIRCLES) {
           spawnCircle(this);
         }
         removeOldCircles(this);
       }
-
-      // move circles slightly
-      this.circles.getChildren().forEach(c => {
-        c.x += c.vx;
-        c.y += c.vy;
-        if (c.x < c.displayWidth/2 || c.x > this.scale.width - c.displayWidth/2) c.vx *= -1;
-        if (c.y < c.displayHeight/2 || c.y > this.scale.height - c.displayHeight/2) c.vy *= -1;
-      });
+      // keine konstante Bewegung mehr — Kreise sind statisch bis zum Klick
     }
 
     function loadHighscore() {
@@ -186,10 +174,9 @@
 
     function spawnCircle(scene) {
       const size = Phaser.Math.Between(28, 64);
-      const attempts = SPAWN_ATTEMPTS;
       let chosen = null;
 
-      for (let i=0;i<attempts;i++) {
+      for (let i=0;i<SPAWN_ATTEMPTS;i++) {
         const x = Phaser.Math.Between(size, scene.scale.width - size);
         const y = Phaser.Math.Between(size + 44, scene.scale.height - size - 60);
         const overlaps = scene.circles.getChildren().some(existing => {
@@ -215,8 +202,7 @@
       sprite.setDisplaySize(size, size);
       scene.physics.world.enable(sprite);
       sprite.body.setCircle(size/2);
-      sprite.vx = Phaser.Math.FloatBetween(-1.2, 1.2);
-      sprite.vy = Phaser.Math.FloatBetween(-1.2, 1.2);
+      // keine vx/vy — statisch bis zum Klick
       scene.circles.add(sprite);
 
       // auto remove after time
@@ -225,10 +211,18 @@
       });
     }
 
+    function removeOldCircles(scene) {
+      // Entferne älteste, falls zu viele
+      const children = scene.circles.getChildren();
+      while (children.length > MAX_CIRCLES) {
+        const oldest = children.shift();
+        if (oldest && oldest.destroy) oldest.destroy();
+      }
+    }
+
     function blastCircle(scene, sprite) {
       const x = sprite.x, y = sprite.y;
       const size = sprite.displayWidth;
-      sprite.destroy();
 
       // Punkte: kleinere Kreise geben mehr Punkte
       const pts = Math.max(5, Math.round(80 - size));
@@ -244,18 +238,32 @@
         setTimeout(()=> infoEl.textContent = 'Tip: Klick Start', 1200);
       }
 
-      // Partikel (limited)
-      const particles = scene.add.particles(null);
-      const emitter = particles.createEmitter({
-        x, y,
-        speed: { min: 80, max: 220 },
-        angle: { min: 0, max: 360 },
-        lifespan: 400,
-        quantity: Math.min(12, PARTICLE_LIMIT),
-        scale: { start: 0.6, end: 0 },
-        blendMode: 'ADD'
+      // Tween: zur Mitte bewegen und schrumpfen
+      const centerX = scene.scale.width / 2;
+      const centerY = scene.scale.height / 2;
+      scene.tweens.add({
+        targets: sprite,
+        x: centerX,
+        y: centerY,
+        scale: 0.05,
+        duration: 320,
+        ease: 'Cubic.easeIn',
+        onComplete: () => {
+          // Partikel
+          const particles = scene.add.particles(null);
+          const emitter = particles.createEmitter({
+            x: centerX, y: centerY,
+            speed: { min: 80, max: 220 },
+            angle: { min: 0, max: 360 },
+            lifespan: 400,
+            quantity: Math.min(12, PARTICLE_LIMIT),
+            scale: { start: 0.6, end: 0 },
+            blendMode: 'ADD'
+          });
+          scene.time.delayedCall(350, () => particles.destroy());
+          sprite.destroy();
+        }
       });
-      scene.time.delayedCall(350, () => particles.destroy());
 
       // optional sound
       if (soundOn && scene.sound && scene.sound.get('pop')) {
@@ -284,15 +292,6 @@
       infoEl.textContent = 'Zurückgesetzt';
       setTimeout(()=> infoEl.textContent = 'Tip: Klick Start', 1000);
     }
-
-    // Expose reset for UI button
-    document.addEventListener('DOMContentLoaded', () => {
-      // ensure Phaser scene is ready
-      // nothing else needed here
-    });
-
-    // Ensure Phaser sound fallback safe load
-    // If the CDN sound fails, Phaser will ignore it silently.
   </script>
 </body>
 </html>
