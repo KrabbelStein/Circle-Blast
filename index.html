@@ -142,8 +142,8 @@
       let score = 0;
       let timeLeft = GAME_TIME;
       let running = false;
-      let spawnEvent = null;
-      let timerEvent = null;
+      let spawnEventLocal = null;
+      let timerEventLocal = null;
       const activeEmitters = [];
 
       // Gruppe für Kreise
@@ -343,14 +343,22 @@
       }
 
       // Start / Reset / End Game mit sauberer Timer-Verwaltung
-      let spawnEventLocal = null;
-      let timerEventLocal = null;
-
       function startGame() {
+        // defensive cleanup of previous events/tweens
         try { if (spawnEventLocal) { spawnEventLocal.remove(false); spawnEventLocal = null; } } catch(e){}
         try { if (timerEventLocal) { timerEventLocal.remove(false); timerEventLocal = null; } } catch(e){}
         try { scene.tweens.killAll(); } catch(e){}
 
+        // Remove any existing circles before starting so we start with exactly one
+        try {
+          const existing = scene.circles.getChildren().slice();
+          existing.forEach(c => {
+            try { c.off && c.off('pointerdown'); c.destroy(); } catch(e){}
+          });
+          scene.circles.clear(true);
+        } catch(e){}
+
+        // reset state
         score = 0;
         timeLeft = GAME_TIME;
         scoreEl.textContent = 'Score: ' + score;
@@ -358,6 +366,7 @@
         running = true;
         centerMsg.style.display = 'none';
 
+        // spawn event (repeating, starts after SPAWN_DELAY)
         spawnEventLocal = scene.time.addEvent({
           delay: SPAWN_DELAY,
           loop: true,
@@ -366,6 +375,7 @@
           }
         });
 
+        // timer event
         timerEventLocal = scene.time.addEvent({
           delay: 1000,
           loop: true,
@@ -378,8 +388,10 @@
           }
         });
 
-        // initial: nur 1 Kreis (Änderung auf Wunsch)
-        if (scene.circles.getLength() < MAX_CIRCLES) spawnCircle();
+        // initial: exactly 1 circle
+        if (scene.circles.getLength() < MAX_CIRCLES) {
+          spawnCircle();
+        }
       }
 
       function endGame() {
