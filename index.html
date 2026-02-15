@@ -60,7 +60,7 @@
     const MAX_CIRCLES = 6;
     const SPAWN_INTERVAL = 1400; // ms
     const SPAWN_ATTEMPTS = 12;
-    const PARTICLE_LIMIT = 18; // max particles per blast
+    const PARTICLE_LIMIT = 12; // max particles per blast (vernünftig begrenzt)
 
     // Phaser Setup
     const config = {
@@ -80,13 +80,12 @@
     let running = false;
 
     function preload() {
-      // optional click sound (may fail silently if CDN blocked)
-      // If you prefer, host a small pop.mp3 in your repo and change the URL.
+      // Erzeuge eine kleine Partikel-Textur einmalig (wiederverwendbar)
+      this.load.once('complete', () => {}, this);
+      // optionaler Sound (wenn verfügbar)
       try {
         this.load.audio('pop', 'https://cdn.jsdelivr.net/gh/kripken/sound-effects/pop.mp3');
-      } catch (e) {
-        // ignore
-      }
+      } catch (e) { /* ignore */ }
     }
 
     function create() {
@@ -100,7 +99,14 @@
 
       this.circles = this.physics.add.group();
 
-      // Input: Klick / Touch
+      // Erzeuge einmalig eine kleine Partikel-Textur (6x6)
+      const g = this.add.graphics();
+      g.fillStyle(0xffffff, 1);
+      g.fillCircle(3, 3, 3);
+      g.generateTexture('particleDot', 6, 6);
+      g.destroy();
+
+      // Input: Klick / Touch (koordinatenbasiert)
       this.input.on('pointerdown', function (pointer) {
         if (!running) return;
         const x = pointer.x;
@@ -203,6 +209,7 @@
       if (sprite.body && sprite.body.setCircle) {
         sprite.body.setCircle(Math.round(size/2));
       }
+      // mark as not interactive (we use coordinate hit test)
       scene.circles.add(sprite);
 
       // auto remove after time (clean remove from group)
@@ -224,6 +231,12 @@
     }
 
     function blastCircle(scene, sprite) {
+      // Prevent double-trigger on same sprite: deactivate immediately
+      try {
+        sprite.active = false;
+        if (sprite.body && sprite.body.enable) sprite.body.enable = false;
+      } catch (e) { /* ignore */ }
+
       const size = sprite.displayWidth;
 
       // Punkte: kleinere Kreise geben mehr Punkte
@@ -243,6 +256,10 @@
       // Tween: zur Mitte bewegen und schrumpfen (scaleX/scaleY)
       const centerX = scene.scale.width / 2;
       const centerY = scene.scale.height / 2;
+
+      // Kill any tweens targeting this sprite to avoid conflicts
+      scene.tweens.killTweensOf(sprite);
+
       scene.tweens.add({
         targets: sprite,
         x: centerX,
@@ -252,32 +269,42 @@
         duration: 320,
         ease: 'Cubic.easeIn',
         onComplete: () => {
-          // Partikel
-          const particles = scene.add.particles(null);
-          particles.createEmitter({
+          // Partikel: benutze die vorerzeugte 'particleDot' Textur
+          const particles = scene.add.particles('particleDot');
+          const emitter = particles.createEmitter({
             x: centerX, y: centerY,
             speed: { min: 80, max: 220 },
             angle: { min: 0, max: 360 },
             lifespan: 400,
-            quantity: Math.min(12, PARTICLE_LIMIT),
-            scale: { start: 0.6, end: 0 },
+            quantity: Math.min(8, PARTICLE_LIMIT),
+            scale: { start: 1.0, end: 0 },
             blendMode: 'ADD'
           });
-          scene.time.delayedCall(350, () => particles.destroy());
-          // Entferne sauber aus Gruppe und zerstöre Sprite
-          scene.circles.remove(sprite, true, true);
+
+          // kurze Verzögerung, dann Partikel entfernen und Sprite zerstören
+          scene.time.delayedCall(300, () => {
+            try {
+              particles.destroy();
+            } catch (e) { /* ignore */ }
+            // Entferne sauber aus Gruppe und zerstöre Sprite
+            try {
+              scene.circles.remove(sprite, true, true);
+            } catch (e) {
+              try { sprite.destroy(); } catch (e2) {}
+            }
+          });
         }
       });
 
-      // optional sound (safe play)
+      // optionaler Sound (safe play)
       try {
-        if (soundOn) scene.sound.play('pop', { volume: 0.6 });
-      } catch (e) {
-        // ignore if sound not loaded
-      }
+        if (soundOn && scene.sound && scene.sound.get('pop')) scene.sound.play('pop', { volume: 0.6 });
+      } catch (e) { /* ignore */ }
     }
 
     function startGame(scene) {
+      // ensure no leftover tweens or particles
+      try { scene.tweens.killAll(); } catch (e) {}
       score = 0;
       if (scoreEl) scoreEl.textContent = 'Score: 0';
       running = true;
@@ -290,12 +317,36 @@
     }
 
     function resetGame(scene) {
+      // Stop spawning and animations
       running = false;
+      spawnTimer = 0;
       score = 0;
       if (scoreEl) scoreEl.textContent = 'Score: 0';
       centerMsg.style.display = 'block';
-      scene.circles.clear(true, true);
       infoEl.textContent = 'Zurückgesetzt';
+
+      // Kill all tweens (prevents hanging tweens)
+      try { scene.tweens.killAll(); } catch (e) {}
+
+      // Destroy all sprites in the group safely
+      try {
+        const children = scene.circles.getChildren().slice(); // copy
+        children.forEach(c => {
+          try { if (c && c.destroy) c.destroy(); } catch (e) {}
+        });
+        // clear group
+        try { scene.circles.clear(true); } catch (e) {}
+      } catch (e) { /* ignore */ }
+
+      // remove any lingering particles
+      try {
+        scene.children.list.forEach(child => {
+          if (child && child.texture && child.texture.key === 'particleDot' && child.destroy) {
+            // don't destroy the texture itself, only particle emitters are destroyed above
+          }
+        });
+      } catch (e) {}
+
       setTimeout(()=> infoEl.textContent = 'Tip: Klick Start', 1000);
     }
   </script>
