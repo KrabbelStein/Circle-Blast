@@ -9,21 +9,26 @@
 html,body {
   margin:0;
   padding:0;
+  width:100%;
   height:100%;
+  overflow:hidden;
   background:#0b0b0f;
   color:#fff;
   font-family: system-ui, -apple-system, Segoe UI, Roboto;
 }
+
 #game-container {
   width:100%;
   height:100%;
 }
+
 .ui {
   position:absolute;
   top:12px;
   left:12px;
   z-index:10;
 }
+
 .panel {
   background:#111217;
   padding:10px;
@@ -32,6 +37,7 @@ html,body {
   gap:8px;
   align-items:center;
 }
+
 .btn {
   background:#1f2937;
   border:none;
@@ -41,16 +47,21 @@ html,body {
   cursor:pointer;
   font-weight:600;
 }
+
 .score {
   font-weight:700;
 }
+
 .center-msg {
   position:absolute;
-  top:45%;
-  left:50%;
-  transform:translate(-50%,-50%);
+  inset:0;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
   text-align:center;
   opacity:0.9;
+  pointer-events:none;
 }
 </style>
 
@@ -86,7 +97,7 @@ const config = {
   scene: { preload, create }
 };
 
-new Phaser.Game(config);
+const game = new Phaser.Game(config);
 
 function preload() {}
 
@@ -101,7 +112,11 @@ function create() {
 
   const circles = scene.add.group();
 
-  // === Texture Helper (KEIN Clipping mehr) ===
+  // === Resize fix ===
+  window.addEventListener('resize', () => {
+    scene.scale.resize(window.innerWidth, window.innerHeight);
+  });
+
   function circleTexture(size, color) {
     const key = `c_${size}_${color}`;
     if (scene.textures.exists(key)) return key;
@@ -114,7 +129,6 @@ function create() {
     return key;
   }
 
-  // === Spawn ===
   function spawnCircle() {
     if (!running || circles.getLength() >= MAX_CIRCLES) return;
 
@@ -134,14 +148,12 @@ function create() {
     sprite.on('pointerdown', () => blast(sprite));
     circles.add(sprite);
 
-    // Auto remove (single-owner logic!)
     sprite._lifeTimer = scene.time.delayedCall(
       Phaser.Math.Between(5000, 8000),
       () => safeDestroy(sprite)
     );
   }
 
-  // === Blast ===
   function blast(sprite) {
     if (sprite._dead) return;
     sprite._dead = true;
@@ -152,25 +164,27 @@ function create() {
     score += 10;
     scoreEl.textContent = 'Score: ' + score;
 
+    const centerX = scene.scale.width / 2;
+    const centerY = scene.scale.height / 2;
+
     scene.tweens.add({
       targets: sprite,
+      x: centerX,
+      y: centerY,
       scale: 0,
-      duration: 250,
+      duration: 300,
       ease: 'Cubic.easeIn',
       onComplete: () => safeDestroy(sprite)
     });
   }
 
-  // === Safe destroy ===
   function safeDestroy(sprite) {
     if (!sprite || !sprite.active) return;
-    sprite._dead = true;
     sprite.off('pointerdown');
     circles.remove(sprite);
     sprite.destroy();
   }
 
-  // === Game Control ===
   function startGame() {
     resetGame();
     running = true;
@@ -189,7 +203,7 @@ function create() {
     running = false;
     score = 0;
     scoreEl.textContent = 'Score: 0';
-    centerMsg.style.display = 'block';
+    centerMsg.style.display = 'flex';
 
     spawnEvent?.remove(false);
     spawnEvent = null;
@@ -197,7 +211,6 @@ function create() {
     circles.getChildren().slice().forEach(s => safeDestroy(s));
   }
 
-  // === UI ===
   document.getElementById('startBtn').onclick = () => {
     if (!running) startGame();
   };
