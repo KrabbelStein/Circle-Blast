@@ -216,6 +216,9 @@
         sprite.setOrigin(0.5, 0.5);
         sprite._isBlasting = false;
 
+        // store spawn timestamp for reaction-based scoring (ms)
+        sprite._spawnTime = Date.now();
+
         // Interaktiv pro Sprite
         sprite.setInteractive({ useHandCursor: true });
         const onPointer = () => {
@@ -256,9 +259,23 @@
           sprite._lifeTimer = null;
         } catch(e){}
 
-        // Punkte
+        // Punkte-Berechnung basierend auf Reaktionszeit (übernommen aus Swift-Logik)
+        // basePoints = 10 (wie im Swift-Code)
+        // bonus = round(7 * max(0, 1 - reaction / 2))
+        // reaction in seconds = (now - spawnTime) / 1000
+        let pts = 10;
         try {
-          score += 10;
+          const now = Date.now();
+          const reaction = sprite._spawnTime ? (now - sprite._spawnTime) / 1000 : 0.0;
+          const bonus = Math.round(7 * Math.max(0, 1 - reaction / 2));
+          pts += bonus;
+        } catch(e) {
+          // fallback if anything goes wrong
+          pts = 10;
+        }
+
+        try {
+          score += pts;
           scoreEl.textContent = 'Score: ' + score;
         } catch(e){}
 
@@ -343,6 +360,9 @@
       }
 
       // Start / Reset / End Game mit sauberer Timer-Verwaltung
+      let spawnEventLocal = null;
+      let timerEventLocal = null;
+
       function startGame() {
         // defensive cleanup of previous events/tweens
         try { if (spawnEventLocal) { spawnEventLocal.remove(false); spawnEventLocal = null; } } catch(e){}
@@ -448,4 +468,3 @@
   </script>
 </body>
 </html>
-
