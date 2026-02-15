@@ -2,197 +2,144 @@
 <html lang="de">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Circle Blast</title>
 
 <style>
-html, body {
-  margin: 0;
-  padding: 0;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  background: #0b0b0f;
+html,body {
+  margin:0;
+  padding:0;
+  height:100%;
+  background:#0b0b0f;
+  color:#fff;
   font-family: system-ui;
-  color: white;
 }
-
-#game {
-  position: fixed;
-  inset: 0;
-}
-
+#game { width:100%; height:100%; }
 .ui {
-  position: absolute;
-  top: 12px;
-  left: 12px;
-  z-index: 10;
-  display: flex;
-  gap: 10px;
+  position:absolute;
+  top:12px;
+  left:12px;
+  z-index:10;
 }
-
-.panel {
-  background: rgba(0,0,0,0.5);
-  padding: 10px 14px;
-  border-radius: 10px;
-  display: flex;
-  gap: 12px;
-  align-items: center;
-}
-button {
-  cursor: pointer;
+.btn {
+  background:#1f2937;
+  color:white;
+  border:none;
+  padding:8px 12px;
+  border-radius:8px;
+  font-weight:600;
 }
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.min.js"></script>
 </head>
-
 <body>
+
 <div id="game"></div>
 
 <div class="ui">
-  <div class="panel">
-    <div id="score">Punkte: 0</div>
-    <div id="timer">30s</div>
-    <button id="start">Start</button>
-    <button id="reset">Reset</button>
-  </div>
+  <span id="score">Score: 0</span>
+  <button class="btn" id="start">Start</button>
+  <button class="btn" id="reset">Reset</button>
 </div>
 
 <script>
-let score = 0;
-let timeRemaining = 30;
-let running = false;
+const MAX = 6;
+const SPAWN_DELAY = 1200;
 
-let spawnEvent = null;
-let timerEvent = null;
-
-const MAX_CIRCLES = 8;
-
-const config = {
+const game = new Phaser.Game({
   type: Phaser.AUTO,
   parent: 'game',
   width: window.innerWidth,
   height: window.innerHeight,
   backgroundColor: '#0b0b0f',
-  scale: {
-    mode: Phaser.Scale.RESIZE,
-    autoCenter: Phaser.Scale.CENTER_BOTH
-  },
   scene: { create }
-};
-
-const game = new Phaser.Game(config);
+});
 
 function create() {
   const scene = this;
-  scene.circles = scene.add.group();
-
   const scoreEl = document.getElementById('score');
-  const timerEl = document.getElementById('timer');
 
-  function spawnCircle() {
-    if (!running) return;
-    if (scene.circles.getLength() >= MAX_CIRCLES) return;
+  let score = 0;
+  let running = false;
+  let spawnTimer = null;
 
-    const size = Phaser.Math.RND.pick([50,70,90]);
-    const half = size / 2;
+  const circles = [];
 
-    const x = Phaser.Math.Between(half, scene.scale.width - half);
-    const y = Phaser.Math.Between(half + 44, scene.scale.height - half - 60);
+  function spawn() {
+    if (!running || circles.length >= MAX) return;
 
-    const g = scene.add.graphics();
-    g.fillStyle(Phaser.Display.Color.RandomRGB().color, 0.6);
-    g.fillCircle(0, 0, half);
-    g.x = x;
-    g.y = y;
-    g.size = size;
-    g.spawnTime = performance.now();
-    g.isHit = false;
+    const r = Phaser.Math.Between(20, 35);
+    const x = Phaser.Math.Between(r, scene.scale.width - r);
+    const y = Phaser.Math.Between(80, scene.scale.height - r);
 
-    g.setInteractive(new Phaser.Geom.Circle(0,0,half), Phaser.Geom.Circle.Contains);
+    const g = scene.add.graphics({ x, y });
+    g.fillStyle(Phaser.Display.Color.RandomRGB().color, 1);
+    g.fillCircle(0, 0, r);
+    g.setInteractive(
+      new Phaser.Geom.Circle(0, 0, r),
+      Phaser.Geom.Circle.Contains
+    );
 
-    g.on('pointerdown', () => {
-      if (g.isHit) return;
-      g.isHit = true;
+    const obj = { g, dead:false };
+    circles.push(obj);
 
-      const reaction = (performance.now() - g.spawnTime) / 1000;
-      const bonus = Math.round(7 * Math.max(0, 1 - reaction / 2));
-      score += 10 + bonus;
-      scoreEl.textContent = 'Punkte: ' + score;
+    g.on('pointerdown', () => blast(obj));
 
-      scene.tweens.add({
-        targets: g,
-        x: scene.scale.width / 2,
-        y: scene.scale.height / 2,
-        scale: 0,
-        duration: 300,
-        ease: 'Cubic.easeIn',
-        onComplete: () => {
-          scene.circles.remove(g);
-          g.destroy();
-        }
-      });
-    });
-
-    scene.circles.add(g);
+    obj.timer = scene.time.delayedCall(
+      6000,
+      () => remove(obj)
+    );
   }
 
-  function startGame() {
-    if (running) return;
+  function blast(obj) {
+    if (obj.dead) return;
+    obj.dead = true;
 
+    obj.timer?.remove(false);
+    score += 10;
+    scoreEl.textContent = 'Score: ' + score;
+
+    scene.tweens.add({
+      targets: obj.g,
+      scale: 0,
+      duration: 250,
+      onComplete: () => remove(obj)
+    });
+  }
+
+  function remove(obj) {
+    if (!obj || obj.g.destroyed) return;
+    obj.dead = true;
+    obj.g.removeAllListeners();
+    obj.g.destroy();
+    const i = circles.indexOf(obj);
+    if (i !== -1) circles.splice(i,1);
+  }
+
+  function start() {
+    reset();
     running = true;
-    score = 0;
-    timeRemaining = 30;
-    scoreEl.textContent = 'Punkte: 0';
-    timerEl.textContent = '30s';
-
-    scene.circles.clear(true, true);
-
-    spawnCircle(); // ★ exakt EIN Kreis beim Start
-
-    spawnEvent = scene.time.addEvent({
-      delay: 1200,
+    spawnTimer = scene.time.addEvent({
+      delay: SPAWN_DELAY,
       loop: true,
-      callback: spawnCircle
+      callback: spawn
     });
-
-    timerEvent = scene.time.addEvent({
-      delay: 1000,
-      loop: true,
-      callback: () => {
-        timeRemaining--;
-        timerEl.textContent = timeRemaining + 's';
-        if (timeRemaining <= 0) endGame();
-      }
-    });
+    for (let i=0;i<3;i++) spawn();
   }
 
-  function endGame() {
-    if (!running) return;
+  function reset() {
     running = false;
-
-    spawnEvent?.remove();
-    timerEvent?.remove();
-
-    scene.circles.getChildren().forEach(c => c.destroy());
-    scene.circles.clear();
-  }
-
-  function resetGame() {
-    endGame();
+    spawnTimer?.remove(false);
+    spawnTimer = null;
+    circles.slice().forEach(remove);
+    circles.length = 0;
     score = 0;
-    timeRemaining = 30;
-    scoreEl.textContent = 'Punkte: 0';
-    timerEl.textContent = '30s';
+    scoreEl.textContent = 'Score: 0';
   }
 
-  document.getElementById('start').onclick = startGame;
-  document.getElementById('reset').onclick = resetGame;
-
-  window.addEventListener('resize', () => {
-    game.scale.resize(window.innerWidth, window.innerHeight);
-  });
+  document.getElementById('start').onclick = start;
+  document.getElementById('reset').onclick = reset;
 }
 </script>
 </body>
