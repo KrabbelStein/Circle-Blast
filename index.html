@@ -52,6 +52,11 @@ html,body {
   font-weight:700;
 }
 
+.timer {
+  font-weight:700;
+  opacity:0.9;
+}
+
 .center-msg {
   position:absolute;
   inset:0;
@@ -74,6 +79,7 @@ html,body {
 <div class="ui">
   <div class="panel">
     <div class="score" id="score">Score: 0</div>
+    <div class="timer" id="timer">Time: 30</div>
     <button class="btn" id="startBtn">Start</button>
     <button class="btn" id="resetBtn">Reset</button>
   </div>
@@ -87,6 +93,7 @@ html,body {
 <script>
 const MAX_CIRCLES = 6;
 const SPAWN_DELAY = 1200;
+const GAME_TIME = 30;
 
 const config = {
   type: Phaser.AUTO,
@@ -97,22 +104,27 @@ const config = {
   scene: { preload, create }
 };
 
-const game = new Phaser.Game(config);
+new Phaser.Game(config);
 
 function preload() {}
 
 function create() {
   const scene = this;
+
   const scoreEl = document.getElementById('score');
+  const timerEl = document.getElementById('timer');
   const centerMsg = document.getElementById('centerMsg');
 
   let score = 0;
+  let timeLeft = GAME_TIME;
   let running = false;
+
   let spawnEvent = null;
+  let timerEvent = null;
 
   const circles = scene.add.group();
 
-  // === Resize fix ===
+  // Resize FIX
   window.addEventListener('resize', () => {
     scene.scale.resize(window.innerWidth, window.innerHeight);
   });
@@ -123,7 +135,7 @@ function create() {
 
     const g = scene.add.graphics();
     g.fillStyle(color, 1);
-    g.fillCircle(size / 2, size / 2, size / 2);
+    g.fillCircle(size/2, size/2, size/2);
     g.generateTexture(key, size, size);
     g.destroy();
     return key;
@@ -164,13 +176,13 @@ function create() {
     score += 10;
     scoreEl.textContent = 'Score: ' + score;
 
-    const centerX = scene.scale.width / 2;
-    const centerY = scene.scale.height / 2;
+    const cam = scene.cameras.main;
+    const target = cam.midPoint;
 
     scene.tweens.add({
       targets: sprite,
-      x: centerX,
-      y: centerY,
+      x: target.x,
+      y: target.y,
       scale: 0,
       duration: 300,
       ease: 'Cubic.easeIn',
@@ -187,7 +199,10 @@ function create() {
 
   function startGame() {
     resetGame();
+
     running = true;
+    timeLeft = GAME_TIME;
+    timerEl.textContent = 'Time: ' + timeLeft;
     centerMsg.style.display = 'none';
 
     spawnEvent = scene.time.addEvent({
@@ -196,19 +211,41 @@ function create() {
       callback: spawnCircle
     });
 
+    timerEvent = scene.time.addEvent({
+      delay: 1000,
+      loop: true,
+      callback: () => {
+        timeLeft--;
+        timerEl.textContent = 'Time: ' + timeLeft;
+        if (timeLeft <= 0) endGame();
+      }
+    });
+
     for (let i=0;i<3;i++) spawnCircle();
+  }
+
+  function endGame() {
+    running = false;
+    spawnEvent?.remove(false);
+    timerEvent?.remove(false);
+
+    centerMsg.style.display = 'flex';
+    centerMsg.innerHTML = `<h1>Game Over</h1><p>Score: ${score}</p>`;
   }
 
   function resetGame() {
     running = false;
     score = 0;
     scoreEl.textContent = 'Score: 0';
-    centerMsg.style.display = 'flex';
+    timerEl.textContent = 'Time: ' + GAME_TIME;
 
     spawnEvent?.remove(false);
-    spawnEvent = null;
+    timerEvent?.remove(false);
 
     circles.getChildren().slice().forEach(s => safeDestroy(s));
+
+    centerMsg.style.display = 'flex';
+    centerMsg.innerHTML = `<h1>Circle Blast</h1><p>Kreise anklicken</p>`;
   }
 
   document.getElementById('startBtn').onclick = () => {
@@ -217,5 +254,6 @@ function create() {
   document.getElementById('resetBtn').onclick = resetGame;
 }
 </script>
+
 </body>
 </html>
