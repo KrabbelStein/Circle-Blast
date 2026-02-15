@@ -93,6 +93,8 @@
     <div class="panel">
       <div class="score" id="score">Score: 0</div>
       <div class="timer" id="timer">Time: 30</div>
+      <!-- Highscore Anzeige hinzugefügt (Design unverändert) -->
+      <div class="score" id="highscore">Highscore: 0</div>
       <button class="btn" id="startBtn">Start</button>
       <button class="btn" id="resetBtn">Reset</button>
     </div>
@@ -135,6 +137,7 @@
       // UI-Elemente
       const scoreEl = document.getElementById('score');
       const timerEl = document.getElementById('timer');
+      const highEl = document.getElementById('highscore');
       const centerMsg = document.getElementById('centerMsg');
 
       // Spielzustand
@@ -155,16 +158,18 @@
       g.generateTexture('particleDot', 6, 6);
       g.destroy();
 
-      // Hilfsfunktionen
+      // Highscore helpers
       const loadHighscore = () => {
         const v = localStorage.getItem(STORAGE_KEY);
         return v ? parseInt(v, 10) : 0;
       };
       const saveHighscore = (v) => localStorage.setItem(STORAGE_KEY, String(v));
       const updateHighscoreDisplay = (v) => {
-        // optional: falls du ein Highscore-Element hast, aktualisiere es
-        // in dieser UI ist kein Highscore-Element sichtbar, daher nur localStorage
+        if (highEl) highEl.textContent = 'Highscore: ' + v;
       };
+
+      // initial Highscore anzeigen
+      updateHighscoreDisplay(loadHighscore());
 
       // Resize-Fix: Szene an Fenster anpassen
       window.addEventListener('resize', () => {
@@ -259,13 +264,15 @@
           scoreEl.textContent = 'Score: ' + score;
         } catch(e){}
 
-        // Highscore-Update (optional)
+        // Highscore-Update
         try {
-          const currentHigh = parseInt(localStorage.getItem(STORAGE_KEY) || '0', 10);
+          const currentHigh = loadHighscore();
           if (score > currentHigh) {
             saveHighscore(score);
-            infoEl && (infoEl.textContent = 'Neuer Highscore!');
-            setTimeout(()=> { if (infoEl) infoEl.textContent = 'Tip: Klick Start'; }, 1200);
+            updateHighscoreDisplay(score);
+            // optional kurze Info
+            // infoEl && (infoEl.textContent = 'Neuer Highscore!');
+            // setTimeout(()=> { if (infoEl) infoEl.textContent = 'Tip: Klick Start'; }, 1200);
           }
         } catch(e){}
 
@@ -433,6 +440,7 @@
       // ensure timer is visible immediately
       timerEl.textContent = 'Time: ' + timeLeft;
       scoreEl.textContent = 'Score: ' + score;
+      updateHighscoreDisplay(loadHighscore());
     }
 
     function update() {
@@ -441,3 +449,4 @@
   </script>
 </body>
 </html>
+
