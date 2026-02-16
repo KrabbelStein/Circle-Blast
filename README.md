@@ -1,4 +1,3 @@
-# Circle-Blast
 <!doctype html>
 <html lang="de">
 <head>
