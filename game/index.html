@@ -18,18 +18,9 @@
       font-family: system-ui, -apple-system, "Segoe UI", Roboto;
     }
 
-    #game-container {
-      width:100%;
-      height:100%;
-      position:relative;
-    }
+    #game-container { width:100%; height:100%; position:relative; }
 
-    .ui {
-      position:absolute;
-      top:12px;
-      left:12px;
-      z-index:40;
-    }
+    .ui { position:absolute; top:12px; left:12px; z-index:40; }
 
     .panel {
       background:#111217;
@@ -51,16 +42,8 @@
       font-weight:600;
     }
 
-    .score {
-      font-weight:700;
-      padding:0 6px;
-    }
-
-    .timer {
-      font-weight:700;
-      opacity:0.95;
-      padding:0 6px;
-    }
+    .score { font-weight:700; padding:0 6px; }
+    .timer { font-weight:700; opacity:0.95; padding:0 6px; }
 
     .center-msg {
       position:absolute;
@@ -111,7 +94,7 @@
     <p>⚠️ Aktuell finden Wartungsarbeiten statt. Es können unerwartete Probleme auftreten.</p>
     <p style="opacity: 0.0;">.</p>
     <p style="opacity: 0.5;">Danke fürs Spielen! ❤️</p>
- </div>
+  </div>
 
   <script>
     const MAX_CIRCLES = 6;
@@ -229,30 +212,23 @@
         if (!sprite || sprite._isBlasting) return;
         sprite._isBlasting = true;
 
-        try {
-          sprite.disableInteractive();
-          if (sprite._lifeTimer) { sprite._lifeTimer.remove(); sprite._lifeTimer = null; }
-        } catch(e){}
+        try { sprite.disableInteractive(); } catch(e){}
+        if (sprite._lifeTimer) { sprite._lifeTimer.remove(); sprite._lifeTimer=null; }
 
-        // Punkte-Logik: schneller Klick = mehr Bonus
-        try {
-          const basePoints = 10;
-          const reaction = (Date.now() - sprite._spawnTime) / 1000;
-          const bonus = Math.round(7 * Math.max(0, 1 - reaction / 2));
-          score += basePoints + bonus;
-          scoreEl.textContent = 'Score: ' + score;
-        } catch(e){}
+        const basePoints = 10;
+        const reaction = (Date.now() - sprite._spawnTime) / 1000;
+        const bonus = Math.round(7 * Math.max(0, 1 - reaction / 2));
+        score += basePoints + bonus;
+        scoreEl.textContent = 'Score: ' + score;
 
-        try {
-          const currentHigh = loadHighscore();
-          if (score > currentHigh) {
-            saveHighscore(score);
-            updateHighscoreDisplay(score);
-          }
-        } catch(e){}
+        const currentHigh = loadHighscore();
+        if (score > currentHigh) {
+          saveHighscore(score);
+          updateHighscoreDisplay(score);
+        }
 
-        const centerX = scene.scale.width / 2;
-        const centerY = scene.scale.height / 2;
+        const centerX = scene.scale.width/2;
+        const centerY = scene.scale.height/2;
         try { scene.tweens.killTweensOf(sprite); } catch(e){}
 
         scene.tweens.add({
@@ -268,96 +244,73 @@
             try {
               particles = scene.add.particles('particleDot');
               const emitter = particles.createEmitter({
-                x: centerX, y: centerY,
-                speed: { min: 80, max: 220 },
-                angle: { min: 0, max: 360 },
-                lifespan: 400,
-                quantity: Math.min(6, PARTICLE_LIMIT),
-                scale: { start: 1.0, end: 0 },
-                blendMode: 'ADD'
+                x:centerX, y:centerY, speed:{min:80,max:220}, angle:{min:0,max:360}, lifespan:400,
+                quantity:Math.min(6,PARTICLE_LIMIT), scale:{start:1,end:0}, blendMode:'ADD'
               });
               activeEmitters.push(particles);
-
-              scene.time.delayedCall(300, () => {
-                try { emitter.stop(); } catch(e){}
-                try { particles.destroy(); } catch(e){}
-              });
+              scene.time.delayedCall(300, ()=>{ try{ emitter.stop(); } catch(e){} try{ particles.destroy(); } catch(e){} });
             } catch(e){}
-
-            try { sprite.off('pointerdown'); } catch(e){}
-            try { if (sprite.active) sprite.destroy(); } catch(e){}
-            try { scene.circles.remove(sprite, true, true); } catch(e){}
+            try{ sprite.off('pointerdown'); } catch(e){}
+            try{ if(sprite.active) sprite.destroy(); } catch(e){}
+            try{ scene.circles.remove(sprite,true,true); } catch(e){}
           }
         });
 
-        try { if (scene.sound && scene.sound.get('pop')) scene.sound.play('pop', { volume: 0.6 }); } catch(e){}
+        try { if (scene.sound && scene.sound.get('pop')) scene.sound.play('pop',{volume:0.6}); } catch(e){}
       }
 
-      function removeOldCircles() {
-        while (scene.circles.getLength() > MAX_CIRCLES) {
-          const oldest = scene.circles.getChildren()[0];
-          if (oldest) { oldest.off('pointerdown'); oldest.destroy(); scene.circles.remove(oldest, true, true); }
-          else break;
-        }
+      function cleanupAllCircles() {
+        scene.circles.getChildren().slice().forEach(c=>{ c.off('pointerdown'); c.destroy(); });
+        scene.circles.clear(true);
+        activeEmitters.forEach(em=>{ try{em.destroy(); } catch(e){} });
+        activeEmitters.length=0;
       }
 
       function startGame() {
-        try { if (spawnEventLocal) { spawnEventLocal.remove(false); spawnEventLocal=null; } } catch(e){}
-        try { if (timerEventLocal) { timerEventLocal.remove(false); timerEventLocal=null; } } catch(e){}
-        try { scene.tweens.killAll(); } catch(e){}
-        scene.circles.getChildren().slice().forEach(c => { c.off('pointerdown'); c.destroy(); });
-        scene.circles.clear(true);
+        cleanupAllCircles();
+        try{ if(spawnEventLocal){spawnEventLocal.remove(false); spawnEventLocal=null;} } catch(e){}
+        try{ if(timerEventLocal){timerEventLocal.remove(false); timerEventLocal=null;} } catch(e){}
+        try{ scene.tweens.killAll(); } catch(e){}
 
-        score = 0; timeLeft = GAME_TIME;
-        scoreEl.textContent = 'Score: ' + score;
-        timerEl.textContent = 'Time: ' + timeLeft;
-        running = true;
-        centerMsg.style.display = 'none';
+        score=0; timeLeft=GAME_TIME;
+        scoreEl.textContent='Score: '+score;
+        timerEl.textContent='Time: '+timeLeft;
+        running=true;
+        centerMsg.style.display='none';
 
-        spawnEventLocal = scene.time.addEvent({ delay: SPAWN_DELAY, loop:true, callback:()=>{ if(scene.circles.getLength()<MAX_CIRCLES) spawnCircle(); removeOldCircles(); } });
-        timerEventLocal = scene.time.addEvent({ delay:1000, loop:true, callback:()=>{ timeLeft--; timerEl.textContent='Time: '+timeLeft; if(timeLeft<=0) endGame(); } });
-
+        spawnEventLocal = scene.time.addEvent({delay:SPAWN_DELAY, loop:true, callback:()=>{ if(scene.circles.getLength()<MAX_CIRCLES) spawnCircle(); }});
+        timerEventLocal = scene.time.addEvent({delay:1000, loop:true, callback:()=>{ timeLeft--; timerEl.textContent='Time: '+timeLeft; if(timeLeft<=0) endGame(); }});
         if(scene.circles.getLength()<MAX_CIRCLES) spawnCircle();
       }
 
       function endGame() {
         running=false;
-        try { if (spawnEventLocal) { spawnEventLocal.remove(false); spawnEventLocal=null; } } catch(e){}
-        try { if (timerEventLocal) { timerEventLocal.remove(false); timerEventLocal=null; } } catch(e){}
-        try { scene.tweens.killAll(); } catch(e){}
+        cleanupAllCircles();
+        try{ if(spawnEventLocal){spawnEventLocal.remove(false); spawnEventLocal=null;} } catch(e){}
+        try{ if(timerEventLocal){timerEventLocal.remove(false); timerEventLocal=null;} } catch(e){}
+        try{ scene.tweens.killAll(); } catch(e){}
 
-        centerMsg.style.display = 'flex';
-        centerMsg.innerHTML = `<h1>Game Over</h1><p>Score: ${score}</p>`;
+        centerMsg.style.display='flex';
+        centerMsg.innerHTML=`<h1>Game Over</h1><p>Score: ${score}</p>
+          <p style="opacity:0.5;">Danke fürs Spielen! ❤️</p>`;
       }
 
       function resetGame() {
-  running = false;
+        running=false;
+        cleanupAllCircles();
+        score=0; timeLeft=GAME_TIME;
+        scoreEl.textContent='Score: 0';
+        timerEl.textContent='Time: '+GAME_TIME;
 
-  // Events stoppen
-  try { if (spawnEventLocal) { spawnEventLocal.remove(false); spawnEventLocal = null; } } catch(e){}
-  try { if (timerEventLocal) { timerEventLocal.remove(false); timerEventLocal = null; } } catch(e){}
-  try { scene.tweens.killAll(); } catch(e){}
-
-  // Alle Kreise entfernen
-  scene.circles.getChildren().slice().forEach(c => {
-    c.off('pointerdown');
-    c.destroy();
-  });
-  scene.circles.clear(true);
-
-  // Partikel entfernen
-  activeEmitters.forEach(em => { try { em.destroy(); } catch(e){} });
-  activeEmitters.length = 0;
-
-  // Werte zurücksetzen
-  score = 0;
-  timeLeft = GAME_TIME;
-  scoreEl.textContent = 'Score: 0';
-  timerEl.textContent = 'Time: ' + GAME_TIME;
-
-  // ZURÜCK ZUM ORIGINAL-HAUPTMENÜ
-  centerMsg.style.display = 'flex';
-}
+        // Original Hauptmenü wieder anzeigen
+        centerMsg.style.display='flex';
+        centerMsg.innerHTML = `<h1>Circle Blast</h1>
+          <p>Treffe die Kreise so schnell wie möglich und trainiere deine Reaktionszeit.</p>
+          <p style="opacity:0.0;">.</p>
+          <p>⚠️ Aktuell finden Wartungsarbeiten statt. Es können unerwartete Probleme auftreten.</p>
+          <p style="opacity:0.0;">.</p>
+          <p style="opacity:0.5;">Danke fürs Spielen! ❤️</p>`;
+      }
 
       document.getElementById('startBtn').onclick = ()=>{ if(!running) startGame(); };
       document.getElementById('resetBtn').onclick = ()=>{ resetGame(); };
@@ -367,4 +320,3 @@
   </script>
 </body>
 </html>
- 
