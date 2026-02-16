@@ -225,13 +225,13 @@ function create() {
 
     // Werte zurücksetzen
     score=0; timeLeft=GAME_TIME;
-    scoreEl.textContent='Score: 0';
-    timerEl.textContent='Time: '+timeLeft;
+    scoreEl.textContent='⭐️ Score: 0';
+    timerEl.textContent='⏳ Time: '+timeLeft;
     running=true;
     centerMsg.style.display='none';
 
     spawnEventLocal=scene.time.addEvent({delay:SPAWN_DELAY,loop:true,callback:()=>{if(scene.circles.getLength()<MAX_CIRCLES) spawnCircle(); removeOldCircles();}});
-    timerEventLocal=scene.time.addEvent({delay:1000,loop:true,callback:()=>{timeLeft--;timerEl.textContent='Time: '+timeLeft;if(timeLeft<=0) endGame();}});
+    timerEventLocal=scene.time.addEvent({delay:1000,loop:true,callback:()=>{timeLeft--;timerEl.textContent='⏳ Time: '+timeLeft;if(timeLeft<=0) endGame();}});
 
     if(scene.circles.getLength()<MAX_CIRCLES) spawnCircle();
   }
