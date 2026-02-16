@@ -325,6 +325,11 @@
         try { if (spawnEventLocal) { spawnEventLocal.remove(false); spawnEventLocal=null; } } catch(e){}
         try { if (timerEventLocal) { timerEventLocal.remove(false); timerEventLocal=null; } } catch(e){}
         try { scene.tweens.killAll(); } catch(e){}
+        scene.circles.getChildren().slice().forEach(c => { 
+    c.off('pointerdown'); 
+    c.destroy(); 
+});
+scene.circles.clear(true);
 
         centerMsg.style.display = 'flex';
         centerMsg.innerHTML = `<h1>Game Over</h1><p>Score: ${score}</p>`;
