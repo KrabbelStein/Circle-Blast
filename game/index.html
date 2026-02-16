@@ -37,8 +37,10 @@
   </div>
 </div>
 
-<div class="center-msg" id="centerMsg">
-  <h1>Circle Blast</h1>
+<h1>
+  <img src="favicon.png" alt="Icon" style="width:32px; height:32px; vertical-align:middle; margin-right:8px;">
+  Circle Blast
+</h1>
   <p>Treffe die Kreise so schnell wie möglich und trainiere deine Reaktionszeit.</p>
   <p style="opacity:0;">.</p>
   <p>⚠️ Aktuell finden Wartungsarbeiten statt. Es können unerwartete Probleme auftreten.</p>
@@ -67,6 +69,7 @@ let game = new Phaser.Game(config);
 
 function preload() {
   try { this.load.audio('pop', 'https://cdn.jsdelivr.net/gh/kripken/sound-effects/pop.mp3'); } catch(e){}
+  this.load.image('gameIcon', 'favicon.png');
 }
 
 function create() {
