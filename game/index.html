@@ -164,7 +164,7 @@ function create() {
       const reaction=(Date.now()-sprite._spawnTime)/1000;
       const bonus=Math.round(7*Math.max(0,1-reaction/2));
       score+=basePoints+bonus;
-      scoreEl.textContent='Score: '+score;
+      scoreEl.textContent='⭐️ Score: '+score;
     }catch(e){}
 
     try{const currentHigh=loadHighscore(); if(score>currentHigh){saveHighscore(score);updateHighscoreDisplay(score);}}catch(e){}
