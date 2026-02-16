@@ -93,7 +93,7 @@ function create() {
 
   const loadHighscore = ()=>{const v=localStorage.getItem(STORAGE_KEY); return v?parseInt(v,10):0;};
   const saveHighscore = v=>localStorage.setItem(STORAGE_KEY,String(v));
-  const updateHighscoreDisplay = v=>{if(highEl) highEl.textContent='Highscore: '+v;};
+  const updateHighscoreDisplay = v=>{if(highEl) highEl.textContent='🏆 Highscore: '+v;};
   updateHighscoreDisplay(loadHighscore());
 
   window.addEventListener('resize',()=>{scene.scale.resize(Math.min(960,window.innerWidth),Math.min(640,window.innerHeight));});
