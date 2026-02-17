@@ -7,39 +7,97 @@
   <meta name="viewport" content="width=device-width,initial-scale=1.0" />
   <title>Circle Blast</title>
   <style>
-    html,body {margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#0b0b0f;color:#fff;font-family:system-ui,-apple-system,"Segoe UI",Roboto;}
-    #game-container {width:100%; height:100%; position:relative;}
-    .ui {position:absolute; top:12px; left:12px; z-index:40;}
-    .panel {background:#111217; padding:10px; border-radius:10px; display:flex; gap:8px; align-items:center; box-shadow:0 6px 18px rgba(0,0,0,0.6);}
-    .btn {background:#1f2937; border:none; color:white; padding:8px 12px; border-radius:8px; cursor:pointer; font-weight:600;}
-    .score {font-weight:700; padding:0 6px;}
-    .timer {font-weight:700; opacity:0.95; padding:0 6px;}
-    .center-msg {position:absolute; inset:0; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; opacity:0.95; pointer-events:none; z-index:20;}
-    h1 {margin:0 0 6px 0; font-size:28px;}
+    html,body {
+      margin:0;
+      padding:0;
+      width:100%;
+      height:100%;
+      overflow:hidden;
+      background:#0b0b0f;
+      color:#fff;
+      font-family:system-ui,-apple-system,"Segoe UI",Roboto;
+    }
+
+    #game-container {
+      width:100%;
+      height:100%;
+      position:relative;
+    }
+
+    .ui {
+      position:absolute;
+      top:12px;
+      left:12px;
+      z-index:40;
+    }
+
+    .panel {
+      background:#111217;
+      padding:10px;
+      border-radius:10px;
+      display:flex;
+      gap:8px;
+      align-items:center;
+      box-shadow:0 6px 18px rgba(0,0,0,0.6);
+    }
+
+    .btn {
+      background:#1f2937;
+      border:none;
+      color:white;
+      padding:8px 12px;
+      border-radius:8px;
+      cursor:pointer;
+      font-weight:600;
+    }
+
+    .score, .timer {
+      font-weight:700;
+      padding:0 6px;
+    }
+
+    .center-msg {
+      position:absolute;
+      inset:0;
+      display:flex;
+      flex-direction:column;
+      justify-content:center;
+      align-items:center;
+      text-align:center;
+      opacity:0.95;
+      pointer-events:none;
+      z-index:20;
+    }
+
+    h1 {margin:0 0 6px 0;font-size:28px;}
     p {margin:0; opacity:0.9;}
-    
-    .footer {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  text-align: center;
-  font-size: 12px;
-  color: #aaa;
-  padding: 6px 0;
-  background: rgba(0, 0, 0, 0.3);
-  z-index: 999;
-}
-    @media (max-width:520px){.panel{padding:8px}.score,.timer{padding:0 6px}.btn{padding:6px 8px}h1{font-size:22px}}
+
+    /* FOOTER */
+    #footer {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      text-align: center;
+      font-size: 12px;
+      color: #aaa;
+      padding: 6px 0;
+      background: rgba(0, 0, 0, 0.3);
+      z-index: 999;
+      pointer-events: none;
+    }
+
+    @media (max-width:520px){
+      .panel{padding:8px}
+      .btn{padding:6px 8px}
+      h1{font-size:22px}
+    }
   </style>
 
   <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.min.js"></script>
   <meta name="google-adsense-account" content="ca-pub-2423745557368173">
   <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2423745557368173" crossorigin="anonymous"></script>
 </head>
-<div id="footer">
-  © 2026 Circle Blast · All rights reserved
-</div>
 
 <body>
 <div id="game-container"></div>
@@ -60,7 +118,12 @@
   <p style="opacity:0;">.</p>
   <p>⚠️ Currently, maintenance is in progress. Unexpected issues may occur.</p>
   <p style="opacity:0;">.</p>
-  <p style="opacity:0.5;">Thank you for playing! ❤️</p>
+  <p style="opacity:0.5;">Thank you for playing ❤️</p>
+</div>
+
+<!-- FOOTER -->
+<div id="footer">
+  © 2026 Circle Blast · All rights reserved
 </div>
 
 <script>
