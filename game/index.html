@@ -364,5 +364,51 @@ function create() {
 
 function update(){}
 </script>
+<!-- Instant Gaming Banner Overlay -->
+<div id="igBannerOverlay" style="
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0,0,0,0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+">
+    <div id="igBannerContainer" style="position: relative;">
+        <!-- Close Button -->
+        <button id="igBannerClose" style="
+            position: absolute;
+            top: -12px;
+            right: -12px;
+            background: #ff4b4b;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            font-size: 16px;
+            cursor: pointer;
+            z-index: 10000;
+        ">×</button>
+
+        <!-- Instant Gaming Banner Script -->
+        <script>
+            window.igBannerConfig = {
+                lang: 'en',
+                igr: 'KrabbelStein',
+                banners: ['my-banner']
+            };
+        </script>
+        <script src="https://www.instant-gaming.com/api/banner/partner/loader.js" defer></script>
+    </div>
+</div>
+
+<script>
+    // Banner schließen
+    document.getElementById('igBannerClose').onclick = function() {
+        const overlay = document.getElementById('igBannerOverlay');
+        overlay.style.display = 'none';
+    };
+</script>
 </body>
 </html>
