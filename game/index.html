@@ -363,7 +363,6 @@ function create() {
 }
 
 function update(){}
-<!-- Instant Gaming Banner Overlay -->
 <div id="igBannerOverlay" style="
     position: fixed;
     inset: 0;
@@ -374,7 +373,6 @@ function update(){}
     z-index: 9999;
 ">
     <div id="igBannerContainer" style="position: relative;">
-        <!-- Close Button -->
         <button id="igBannerClose" style="
             position: absolute;
             top: -12px;
@@ -390,12 +388,10 @@ function update(){}
             z-index: 10000;
         ">×</button>
 
-        <!-- Banner Container für IG -->
         <div class="my-banner"></div>
     </div>
 </div>
 
-<!-- Instant Gaming Script -->
 <script>
     window.igBannerConfig = {
         lang: 'de',
@@ -406,7 +402,6 @@ function update(){}
 </script>
 <script src="https://www.instant-gaming.com/api/banner/partner/loader.js" defer></script>
 
-<!-- Banner schließen -->
 <script>
     document.getElementById('igBannerClose').onclick = function() {
         const overlay = document.getElementById('igBannerOverlay');
