@@ -1,86 +1,105 @@
 <!doctype html>
-<html lang="en">
+<html lang="de">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>KrabbelStein</title>
 
 <style>
+html, body {
+    margin: 0;
+    padding: 0;
+    background: #0b0b0f;
+    color: #fff;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+}
 
-html,body{
-    margin:0;
-    padding:0;
-    background:#0b0b0f;
-    color:#fff;
-    font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+/* Container für zentrierten Inhalt */
+.container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 20px;
+    text-align: center;
 }
 
 /* Titel */
-h1{
-    text-align:center;
-    margin:40px 0 10px;
+h1 {
+    font-size: 2.5rem;
+    margin-top: 40px;
+    margin-bottom: 10px;
+    background: linear-gradient(45deg, #ff7b00, #ffae00);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+/* Über mich Text */
+.about-section {
+    max-width: 600px;
+    margin: 0 auto 40px auto;
+    font-size: 1.1rem;
+    line-height: 1.6;
+    color: #ccc;
 }
 
 /* Navigation Grid */
-.nav-grid{
-    display:grid;
-    grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));
-    gap:20px;
-    max-width:900px;
-    margin:40px auto;
-    padding:10px;
+.nav-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 25px;
+    margin: 40px auto;
 }
 
 /* Kachel */
-.nav-tile{
-    background:#17171c;
-    border-radius:16px;
-    padding:30px;
-    text-align:center;
-    text-decoration:none;
-    color:white;
-    transition:0.2s;
-    box-shadow:0 4px 12px rgba(0,0,0,0.4);
+.nav-tile {
+    background: #17171c;
+    border-radius: 16px;
+    padding: 30px;
+    text-align: center;
+    text-decoration: none;
+    color: white;
+    transition: transform 0.2s, background-color 0.2s;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 15px; /* Abstand zwischen Icon und Text */
 }
 
 /* Hover Effekt */
-.nav-tile:hover{
-    transform:scale(1.05);
-    background:#1f1f26;
+.nav-tile:hover {
+    transform: scale(1.05);
+    background: #1f1f26;
 }
 
-.icon img{
-    width:50px;       /* gleiche Höhe wie Emoji */
-    height:50px;
-    object-fit:cover;
-    border-radius:22%; /* runde Ecken wie vorher */
-    display:block;
-    margin:auto;
-    background:#000;
-    box-shadow:0 4px 10px rgba(0,0,0,0.5);
-    transition:0.2s;
+.icon img {
+    width: 50px;
+    height: 50px;
+    object-fit: cover;
+    border-radius: 22%;
+    display: block;
+    background: #000;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
 }
 
 /* Text */
-.title{
-    font-size:20px;
-    font-weight:bold;
+.title {
+    font-size: 20px;
+    font-weight: bold;
 }
 
 /* Footer */
-#footer{
-    text-align:center;
-    padding:20px;
-    font-size:14px;
-    color:#888;
-    margin-top:40px;
-    border-top:1px solid #222;
+#footer {
+    text-align: center;
+    padding: 30px 20px;
+    font-size: 14px;
+    color: #666;
+    margin-top: 60px;
+    border-top: 1px solid #1c1c24;
 }
-
 </style>
 </head>
 
-<!--Start of Tawk.to Script-->
 <script type="text/javascript">
 var Tawk_API=Tawk_API||{}, Tawk_LoadStart=new Date();
 (function(){
@@ -92,27 +111,40 @@ s1.setAttribute('crossorigin','*');
 s0.parentNode.insertBefore(s1,s0);
 })();
 </script>
-<!--End of Tawk.to Script-->
-
 <body>
 
-<h1>KrabbelStein</h1>
+<div class="container">
 
-<div class="nav-grid">
+    <h1>KrabbelStein</h1>
+    
+    <div class="about-section">
+        <p>Hi, ich bin <strong>KrabbelStein</strong>! Auf dieser Seite sammle ich meine aktuellen Projekte, Mini-Games und nützliche Links. Schau dich gerne um und probiere meine Web-Apps aus!</p>
+    </div>
 
-<a href="/game" class="nav-tile">
-  <div class="icon">
-    <img src="https://krabbelstein.de/game/favicon.png" alt="">
-  </div>
-  <div class="title">Circle Blast</div>
-</a>
+    <div class="nav-grid">
 
-<a href="/brawlstars" class="nav-tile">
-  <div class="icon">
-    <img src="https://krabbelstein.de/brawlstars/bs-icon-logo.png" alt="">
-  </div>
-  <div class="title">Brawl Stars free items</div>
-</a>
+        <a href="/game" class="nav-tile">
+          <div class="icon">
+            <img src="https://krabbelstein.de/game/favicon.png" alt="Circle Blast">
+          </div>
+          <div class="title">Circle Blast</div>
+        </a>
+
+        <a href="/brawlstars" class="nav-tile">
+          <div class="icon">
+            <img src="https://krabbelstein.de/brawlstars/bs-icon-logo.png" alt="Brawl Stars">
+          </div>
+          <div class="title">Brawl Stars free items</div>
+        </a>
+
+        <a href="https://linktr.ee/krabbelstein" target="_blank" class="nav-tile">
+          <div class="icon">
+            <img src="https://krabbelstein.de/game/favicon.png" alt="Linktree" style="filter: hue-rotate(140deg);">
+          </div>
+          <div class="title">Mein Linktree</div>
+        </a>
+
+    </div>
 
 </div>
 
